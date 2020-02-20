@@ -10,7 +10,7 @@ from stat import (
 from traitlets import Bool
 
 from nbgrader.exchange.abc import ExchangeReleaseAssignment as ABCExchangeReleaseAssignment
-from nbgrader.exchange.default import Exchange
+from nbgrader.exchange.ngshare import Exchange
 
 
 class ExchangeReleaseAssignment(Exchange, ABCExchangeReleaseAssignment):
