@@ -48,8 +48,7 @@ class ExchangeReleaseAssignment(Exchange, ABCExchangeReleaseAssignment):
                 data_bytes = data_read.encode("utf-8")
                 encoded = base64.b64encode(data_bytes)
                 content = 'amtsCg==' + str(encoded)
-                file_map = {"path": filepath, 
-                        "content": content}
+                file_map = {"path": filepath, "content": content}
 
                 assignment.append(file_map)
         return assignment
@@ -59,7 +58,7 @@ class ExchangeReleaseAssignment(Exchange, ABCExchangeReleaseAssignment):
         if self.coursedir.course_id == '':
             self.fail("No course id specified. Re-run with --course flag.")
         url = self.ngshare_url + '/api/assignment/{}/{}'.format(self.coursedir.course_id, self.coursedir.assignment_id)
-        self.log.info("URL - " + url)
+
         data = {'files': json.dumps(self.assignment)}
         r = requests.post(url = url, data = data)
         self.log.info(r.content)
