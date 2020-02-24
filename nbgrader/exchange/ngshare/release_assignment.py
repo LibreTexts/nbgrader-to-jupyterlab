@@ -12,8 +12,14 @@ from traitlets import Bool
 from nbgrader.exchange.abc import ExchangeReleaseAssignment as ABCExchangeReleaseAssignment
 from nbgrader.exchange.ngshare import Exchange
 
+import requests
+import base64
+import json
+
 
 class ExchangeReleaseAssignment(Exchange, ABCExchangeReleaseAssignment):
+
+    force = Bool(False, help="Force overwrite existing files in the exchange.").tag(config=True)
 
     def _load_config(self, cfg, **kwargs):
         if 'ExchangeRelease' in cfg:
@@ -30,31 +36,39 @@ class ExchangeReleaseAssignment(Exchange, ABCExchangeReleaseAssignment):
         super(ExchangeReleaseAssignment, self)._load_config(cfg, **kwargs)
 
     def ensure_root(self):
-        perms = S_IRUSR|S_IWUSR|S_IXUSR|S_IRGRP|S_IWGRP|S_IXGRP|S_IROTH|S_IWOTH|S_IXOTH|((S_IWGRP|S_ISGID) if self.coursedir.groupshared else 0)
+        pass
 
-        # if root doesn't exist, create it and set permissions
-        if not os.path.exists(self.root):
-            self.log.warning("Creating exchange directory: {}".format(self.root))
-            try:
-                os.makedirs(self.root)
-                os.chmod(self.root, perms)
-            except PermissionError:
-                self.fail("Could not create {}, permission denied.".format(self.root))
+    def _encode_assignment(self):
+        assignment = []
 
-        else:
-            old_perms = oct(os.stat(self.root)[ST_MODE] & 0o777)
-            new_perms = oct(perms & 0o777)
-            if old_perms != new_perms:
-                self.log.warning(
-                    "Permissions for exchange directory ({}) are invalid, changing them from {} to {}".format(
-                        self.root, old_perms, new_perms))
-                try:
-                    os.chmod(self.root, perms)
-                except PermissionError:
-                    self.fail("Could not change permissions of {}, permission denied.".format(self.root))
+        for subdir, dirs, files in os.walk(self.src_path):
+            for filename in files:
+                filepath = subdir + os.sep + filename
+                data_read =  open(filepath, "r").read()
+                data_bytes = data_read.encode("utf-8")
+                encoded = base64.b64encode(data_bytes)
+                content = 'amtsCg==' + str(encoded)
+                file_map = {"path": filepath, 
+                        "content": content}
+
+                assignment.append(file_map)
+        return assignment
+
+
+    def _post_assignment(self):
+        if self.coursedir.course_id == '':
+            self.fail("No course id specified. Re-run with --course flag.")
+        url = self.ngshare_url + '/api/assignment/{}/{}'.format(self.coursedir.course_id, self.coursedir.assignment_id)
+        self.log.info("URL - " + url)
+        data = {'files': json.dumps(self.assignment)}
+        r = requests.post(url = url, data = data)
+        self.log.info(r.content)
+
 
     def init_src(self):
+        self.ngshare_url = 'http://172.17.0.3:11111/' #need to get IP address of container
         self.src_path = self.coursedir.format_path(self.coursedir.release_directory, '.', self.coursedir.assignment_id)
+
         if not os.path.isdir(self.src_path):
             source = self.coursedir.format_path(self.coursedir.source_directory, '.', self.coursedir.assignment_id)
             if os.path.isdir(source):
@@ -66,49 +80,13 @@ class ExchangeReleaseAssignment(Exchange, ABCExchangeReleaseAssignment):
                     self.src_path,
                     self.coursedir.format_path(self.coursedir.release_directory, '.', '*'))
 
-    def init_dest(self):
-        if self.coursedir.course_id == '':
-            self.fail("No course id specified. Re-run with --course flag.")
+        self.assignment = self._encode_assignment()
+        self._post_assignment()
 
-        self.course_path = os.path.join(self.root, self.coursedir.course_id)
-        self.outbound_path = os.path.join(self.course_path, 'outbound')
-        self.inbound_path = os.path.join(self.course_path, 'inbound')
-        self.dest_path = os.path.join(self.outbound_path, self.coursedir.assignment_id)
-        # 0755
-        # groupshared: +2040
-        self.ensure_directory(
-            self.course_path,
-            S_IRUSR|S_IWUSR|S_IXUSR|S_IRGRP|S_IXGRP|S_IROTH|S_IXOTH|((S_ISGID|S_IWGRP) if self.coursedir.groupshared else 0)
-        )
-        # 0755
-        # groupshared: +2040
-        self.ensure_directory(
-            self.outbound_path,
-            S_IRUSR|S_IWUSR|S_IXUSR|S_IRGRP|S_IXGRP|S_IROTH|S_IXOTH|((S_ISGID|S_IWGRP) if self.coursedir.groupshared else 0)
-        )
-        # 0733 with set GID so student submission will have the instructors group
-        # groupshared: +0040
-        self.ensure_directory(
-            self.inbound_path,
-            S_ISGID|S_IRUSR|S_IWUSR|S_IXUSR|S_IWGRP|S_IXGRP|S_IWOTH|S_IXOTH|(S_IRGRP if self.coursedir.groupshared else 0)
-        )
+    def init_dest(self):
+        pass
+
 
     def copy_files(self):
-        if os.path.isdir(self.dest_path):
-            if self.force:
-                self.log.info("Overwriting files: {} {}".format(
-                    self.coursedir.course_id, self.coursedir.assignment_id
-                ))
-                shutil.rmtree(self.dest_path)
-            else:
-                self.fail("Destination already exists, add --force to overwrite: {} {}".format(
-                    self.coursedir.course_id, self.coursedir.assignment_id
-                ))
-        self.log.info("Source: {}".format(self.src_path))
-        self.log.info("Destination: {}".format(self.dest_path))
-        self.do_copy(self.src_path, self.dest_path)
-        self.set_perms(
-            self.dest_path,
-            fileperms=(S_IRUSR|S_IWUSR|S_IRGRP|S_IROTH|(S_IWGRP if self.coursedir.groupshared else 0)),
-            dirperms=(S_IRUSR|S_IWUSR|S_IXUSR|S_IRGRP|S_IXGRP|S_IROTH|S_IXOTH|((S_ISGID|S_IWGRP) if self.coursedir.groupshared else 0)))
-        self.log.info("Released as: {} {}".format(self.coursedir.course_id, self.coursedir.assignment_id))
+        pass
+
