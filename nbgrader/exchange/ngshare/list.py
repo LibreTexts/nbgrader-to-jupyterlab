@@ -4,6 +4,7 @@ import shutil
 import re
 import hashlib
 from traitlets import Bool
+import requests
 
 from nbgrader.exchange.abc import ExchangeList as ABCExchangeList
 from nbgrader.utils import notebook_hash, make_unique_key
@@ -18,6 +19,132 @@ def _checksum(path):
 
 class ExchangeList(Exchange, ABCExchangeList):
 
+    def _get_assignments(self, course_ids):
+        """
+        Returns a list of assignments. Each assignment is a dictionary
+        containing the course_id and assignment_id.
+
+        ``course_ids`` - A list of course IDs.
+        """
+        assignments = []
+        server_error = False
+        for course_id in course_ids:
+            url = self.ngshare_url + '/api/assignments/{}'.format(course_id)
+            # TODO: Timeout.
+            try:
+                response = requests.get(url)
+            except:
+                server_error = True
+                continue
+
+            if response.status_code != requests.codes.ok:
+                server_error = True
+                continue
+            if not response.json()['success']:
+                continue
+
+            assignments += [{'course_id': course_id, 'assignment_id': x}
+                    for x in response.json()['assignments']]
+
+        if server_error:
+            self.log.warn('An error occurred querying the server for assignments.')
+
+        return assignments
+
+    def _get_courses(self):
+        """
+        Returns a list of course_ids.
+        """
+        url = self.ngshare_url + '/api/courses'
+
+        # TODO: Timeout.
+        try:
+            response = requests.get(url)
+        except:
+            self.log.warn('An error occurred querying the server for courses.')
+            return []
+
+        if response.status_code != requests.codes.ok:
+            self.log.warn('An error occurred querying the server for courses.')
+            return []
+        if not response.json()['success']:
+            return []
+
+        return response.json()['courses']
+
+    def _get_notebooks(self, course_id, assignment_id):
+        """
+        Returns a list of notebook_ids from the assignment.
+        """
+        url = self.ngshare_url + '/api/assignment/{}/{}'.format(course_id, assignment_id)
+        params = {'list_only': True}
+
+        # TODO: Timeout.
+        try:
+            response = requests.get(url, params)
+        except:
+            self.log.warn('An error occurred querying the server for notebooks.')
+            return []
+
+        if response.status_code != requests.codes.ok:
+            self.log.warn('An error occurred querying the server for courses.')
+            return []
+        if not response.json()['success']:
+            return []
+
+        return [os.path.splitext(os.path.split(x['path'])[1])[0] for x in response.json()['files']]
+
+    def _get_submissions(self, assignments, student_id=None):
+        """
+        Returns a list of submissions. Each submission is a dictionary
+        containing the "course_id", "assignment_id", "student_id", "timestamp"
+        and a list of "notebooks". Each notebook is a dictionary containing a
+        "notebook_id" and "feedback_checksum".
+
+        ``assignments`` - A list of dictionaries containing "course_id" and
+        "assignment_id".
+        ``student_id`` - Used to specify a specific student's submissions to
+        get. If None, submissions from all students are fetched if permitted.
+        """
+        submissions = []
+        server_error = False
+        for assignment in assignments:
+            course_id = assignment['course_id']
+            assignment_id = assignment['assignment_id']
+            url = self.ngshare_url + '/api/submissions/{}/{}'.format(
+                    course_id, assignment_id)
+
+            if student_id is not None:
+                url += '/' + student_id
+
+            try:
+                response = requests.get(url)
+            except:
+                server_error = True
+                continue
+
+            if response.status_code != requests.codes.ok:
+                server_error = True
+                continue
+
+            response_json = response.json()
+            if not response_json['success']:
+                continue
+
+            for submission in response_json['submissions']:
+                submissions.append({
+                        'course_id': course_id,
+                        'assignment_id': assignment_id,
+                        'student_id': submission['student_id'] if student_id is None else student_id,
+                        'timestamp': submission['timestamp'],
+                        #TODO 'notebooks': submission['notebooks']})
+                        'notebooks': []})
+
+        if server_error:
+            self.log.warn('An error occurred querying the server for submissions.')
+
+        return submissions
+
     def init_src(self):
         pass
 
@@ -26,22 +153,40 @@ class ExchangeList(Exchange, ABCExchangeList):
         assignment_id = self.coursedir.assignment_id if self.coursedir.assignment_id else '*'
         student_id = self.coursedir.student_id if self.coursedir.student_id else '*'
 
+        self.ngshare_url = 'http://172.17.0.1:11111' # TODO: Find server address.
+        if course_id == '*':
+            courses = self._get_courses()
+        else:
+            courses = [course_id]
+        if assignment_id == '*':
+            assignments = self._get_assignments(courses)
+        else:
+            assignments = [{'course_id': x, 'assignment_id': assignment_id}
+                    for course in courses]
+
         if self.inbound:
-            pattern = os.path.join(self.root, course_id, 'inbound', '{}+{}+*'.format(student_id, assignment_id))
+            if student_id == '*':
+                student_id = None
+            self.assignments = self._get_submissions(assignments, student_id)
         elif self.cached:
             pattern = os.path.join(self.cache, course_id, '{}+{}+*'.format(student_id, assignment_id))
+            self.assignments = sorted(glob.glob(pattern))
+            if student_id == '*':
+                student_id = None
+            self.submissions = self._get_submissions(assignments, student_id)
         else:
-            pattern = os.path.join(self.root, course_id, 'outbound', '{}'.format(assignment_id))
-
-        self.assignments = sorted(glob.glob(pattern))
+            self.assignments = assignments
 
     def parse_assignment(self, assignment):
         if self.inbound:
-            regexp = r".*/(?P<course_id>.*)/inbound/(?P<student_id>[^+]*)\+(?P<assignment_id>[^+]*)\+(?P<timestamp>[^+]*)(?P<random_string>\+.*)?"
+            return {'course_id': assignment['course_id'],
+                    'student_id': assignment['student_id'],
+                    'assignment_id': assignment['assignment_id'],
+                    'timestamp': assignment['timestamp']}
         elif self.cached:
             regexp = r".*/(?P<course_id>.*)/(?P<student_id>.*)\+(?P<assignment_id>.*)\+(?P<timestamp>.*)"
         else:
-            regexp = r".*/(?P<course_id>.*)/outbound/(?P<assignment_id>.*)"
+            return assignment
 
         m = re.match(regexp, assignment)
         if m is None:
@@ -75,8 +220,8 @@ class ExchangeList(Exchange, ABCExchangeList):
             courses = None
 
         assignments = []
-        for path in self.assignments:
-            info = self.parse_assignment(path)
+        for assignment in self.assignments:
+            info = self.parse_assignment(assignment)
             if courses is not None and info['course_id'] not in courses:
                 continue
 
@@ -87,27 +232,47 @@ class ExchangeList(Exchange, ABCExchangeList):
 
             if self.inbound or self.cached:
                 info['status'] = 'submitted'
-                info['path'] = path
+                if self.cached:
+                    info['path'] = assignment
             elif os.path.exists(assignment_dir):
                 info['status'] = 'fetched'
                 info['path'] = os.path.abspath(assignment_dir)
             else:
                 info['status'] = 'released'
-                info['path'] = path
 
             if self.remove:
                 info['status'] = 'removed'
 
-            notebooks = sorted(glob.glob(os.path.join(info['path'], '*.ipynb')))
+            if  self.cached:
+                notebooks = sorted(glob.glob(os.path.join(info['path'], '*.ipynb')))
+            elif self.inbound:
+                notebooks = sorted(assignment['notebooks'])
+            else:
+                notebooks = self._get_notebooks(info['course_id'], info['assignment_id'])
+
             if not notebooks:
-                self.log.warning("No notebooks found in {}".format(info['path']))
+                self.log.warning('No notebooks found for assignment "{}" in course "{}"'
+                    .format(info['assignment_id'], info['course_id']))
+
+            if self.cached:
+                submissions = [x['notebooks'] for x in self.submissions if
+                    x['timestamp'] == info['timestamp']
+                    and x['student_id'] == info['student_id']
+                    and x['assignment_id'] == info['assignment_id']
+                    and x['course_id'] == info['course_id']
+                    ]
 
             info['notebooks'] = []
             for notebook in notebooks:
-                nb_info = {
-                    'notebook_id': os.path.splitext(os.path.split(notebook)[1])[0],
-                    'path': os.path.abspath(notebook)
-                }
+                if self.cached:
+                    nb_info = {
+                        'notebook_id': os.path.splitext(os.path.split(notebook)[1])[0],
+                        'path': os.path.abspath(notebook)
+                    }
+                elif self.inbound:
+                    nb_info = { 'notebook_id': notebook['notebook_id']}
+                else:
+                    nb_info = {'notebook_id': notebook}
                 if info['status'] != 'submitted':
                     info['notebooks'].append(nb_info)
                     continue
@@ -129,27 +294,20 @@ class ExchangeList(Exchange, ABCExchangeList):
                     local_feedback_checksum = None
 
                 # Also look to see if there is feedback available to fetch.
-                unique_key = make_unique_key(
-                    info['course_id'],
-                    info['assignment_id'],
-                    nb_info['notebook_id'],
-                    info['student_id'],
-                    info['timestamp'])
-                self.log.debug("Unique key is: {}".format(unique_key))
-                nb_hash = notebook_hash(notebook, unique_key)
-                exchange_feedback_path = os.path.join(
-                    self.root, info['course_id'], 'feedback', '{0}.html'.format(nb_hash))
-                has_exchange_feedback = os.path.isfile(exchange_feedback_path)
-                if not has_exchange_feedback:
-                    # Try looking for legacy feedback.
-                    nb_hash = notebook_hash(notebook)
-                    exchange_feedback_path = os.path.join(
-                        self.root, info['course_id'], 'feedback', '{0}.html'.format(nb_hash))
-                    has_exchange_feedback = os.path.isfile(exchange_feedback_path)
-                if has_exchange_feedback:
-                    exchange_feedback_checksum = _checksum(exchange_feedback_path)
-                else:
+                if self.cached:
+                    has_exchange_feedback = False
                     exchange_feedback_checksum = None
+                    for submission_notebook in submissions:
+                        if submission_notebook['notebook_id'] == info['notebook_id']:
+                            has_exchange_feedback = True
+                            exchange_feedback_checksum = submission_notebook['feedback_checksum']
+                            break
+                else: # self.inbound
+                    has_exchange_feedback = notebook['feedback_checksum'] is not None and notebook['feedback_checksum'] != ''
+                    if has_exchange_feedback:
+                        exchange_feedback_checksum = notebook['feedback_checksum']
+                    else:
+                        exchange_feedback_checksum = None
 
                 nb_info['has_local_feedback'] = has_local_feedback
                 nb_info['has_exchange_feedback'] = has_exchange_feedback
@@ -234,8 +392,10 @@ class ExchangeList(Exchange, ABCExchangeList):
             for info in assignments:
                 self.log.info(self.format_outbound_assignment(info))
 
-        for assignment in self.assignments:
-            shutil.rmtree(assignment)
+        if self.cached:
+            for assignment in self.assignments:
+                shutil.rmtree(assignment)
+        # TODO: Remove inbound and outbound assignments.
 
         return assignments
 
