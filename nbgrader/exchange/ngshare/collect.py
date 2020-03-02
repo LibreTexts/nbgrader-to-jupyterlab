@@ -5,6 +5,7 @@ import sys
 from collections import defaultdict
 from textwrap import dedent
 
+import requests
 from traitlets import Bool
 
 from nbgrader.exchange.abc import ExchangeCollect as ABCExchangeCollect
@@ -28,6 +29,52 @@ def groupby(l, key=lambda x: x):
 
 class ExchangeCollect(Exchange, ABCExchangeCollect):
 
+    def _get_submission(self, course_id, assignment_id, student_id):
+        """
+        Returns the student's submission. A submission is a dictionary
+        containing a "timestamp" and "files" list. Each file in the list is a
+        dictionary containing the "path" relative to the assignment root and the
+        "content" as an ASCII representation of the base64 encoded bytes.
+        """
+        url = self.ngshare_url + '/api/submission/{}/{}/{}'.format(
+            course_id, assignment_id, student_id)
+        params = {'user': self.username}
+
+        try:
+            response = requests.get(url, params=params)
+        except:
+            self.log.error('An error occurred downloading a submission.')
+            return None
+
+        if response.status_code != requests.codes.ok or not response.json()['success']:
+            self.log.error('An error occurred downloading a submission.')
+            return None
+
+        return {'timestamp': response.json()['timestamp'],
+                'files': response.json()['files']}
+
+    def _get_submission_list(self, course_id, assignment_id):
+        """
+        Returns a list of submission entries. Each entry is a dictionary
+        containing the "student_id" and "timestamp".
+        """
+        url = self.ngshare_url + '/api/submissions/{}/{}'.format(
+            course_id, assignment_id)
+        params = {'user': self.username}
+
+        try:
+            response = requests.get(url, params=params)
+        except Exception as e:
+            self.log.error('An error occurred querying submissions.')
+            print(e)
+            return []
+
+        if response.status_code != requests.codes.ok or not response.json()['success']:
+            return []
+
+        return [{'student_id': x['student_id'], 'timestamp': x['timestamp']}
+                for x in response.json()['submissions']]
+
     def _path_to_record(self, path):
         filename = os.path.split(path)[1]
         # Only split twice on +, giving three components. This allows usernames with +.
@@ -45,16 +92,11 @@ class ExchangeCollect(Exchange, ABCExchangeCollect):
         if self.coursedir.course_id == '':
             self.fail("No course id specified. Re-run with --course flag.")
 
-        self.course_path = os.path.join(self.root, self.coursedir.course_id)
-        self.inbound_path = os.path.join(self.course_path, 'inbound')
-        if not os.path.isdir(self.inbound_path):
-            self.fail("Course not found: {}".format(self.inbound_path))
-        if not check_mode(self.inbound_path, read=True, execute=True):
-            self.fail("You don't have read permissions for the directory: {}".format(self.inbound_path))
-        student_id = self.coursedir.student_id if self.coursedir.student_id else '*'
-        pattern = os.path.join(self.inbound_path, '{}+{}+*'.format(student_id, self.coursedir.assignment_id))
-        records = [self._path_to_record(f) for f in glob.glob(pattern)]
-        usergroups = groupby(records, lambda item: item['username'])
+        self.ngshare_url = 'http://172.17.0.1:11111' # TODO: Find server address.
+        self.username = os.environ['USER'] # TODO: Get from JupyterHub.
+        records = self._get_submission_list(self.coursedir.course_id,
+            self.coursedir.assignment_id)
+        usergroups = groupby(records, lambda item: item['student_id'])
         self.src_records = [self._sort_by_timestamp(v)[0] for v in usergroups.values()]
 
     def init_dest(self):
@@ -72,21 +114,7 @@ class ExchangeCollect(Exchange, ABCExchangeCollect):
                 self.coursedir.course_id))
 
         for rec in self.src_records:
-            student_id = rec['username']
-            src_path = os.path.join(self.inbound_path, rec['filename'])
-
-            # Cross check the student id with the owner of the submitted directory
-            if self.check_owner and pwd is not None: # check disabled under windows
-                try:
-                    owner = pwd.getpwuid(os.stat(src_path).st_uid).pw_name
-                except KeyError:
-                    owner = "unknown id"
-                if student_id != owner:
-                    self.log.warning(dedent(
-                        """
-                        {} claims to be submitted by {} but is owned by {}; cheating attempt?
-                        you may disable this warning by unsetting the option CollectApp.check_owner
-                        """).format(src_path, student_id, owner))
+            student_id = rec['student_id']
 
             dest_path = self.coursedir.format_path(self.coursedir.submitted_directory, student_id, self.coursedir.assignment_id)
             if not os.path.exists(os.path.dirname(dest_path)):
@@ -109,7 +137,9 @@ class ExchangeCollect(Exchange, ABCExchangeCollect):
                     shutil.rmtree(dest_path)
                 else:
                     self.log.info("Collecting submission: {} {}".format(student_id, self.coursedir.assignment_id))
-                self.do_copy(src_path, dest_path)
+                submission = self._get_submission(self.coursedir.course_id,
+                    self.coursedir.assignment_id, student_id)
+                self.do_copy(submission['files'], dest_path)
             else:
                 if self.update:
                     self.log.info("No newer submission to collect: {} {}".format(
@@ -119,3 +149,9 @@ class ExchangeCollect(Exchange, ABCExchangeCollect):
                     self.log.info("Submission already exists, use --update to update: {} {}".format(
                         student_id, self.coursedir.assignment_id
                     ))
+
+    def do_copy(self, src, dest):
+        """
+        Repurposed version of Exchange.do_copy.
+        """
+        self.encode_dir(src, dest)
