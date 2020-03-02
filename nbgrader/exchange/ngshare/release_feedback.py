@@ -3,6 +3,10 @@ import shutil
 import glob
 import re
 from stat import S_IRUSR, S_IWUSR, S_IXUSR, S_IRGRP, S_IWGRP, S_IXGRP, S_IXOTH, S_ISGID
+import base64
+import json
+
+import requests
 
 from nbgrader.exchange.abc import ExchangeReleaseFeedback as ABCExchangeReleaseFeedback
 from .exchange import Exchange
@@ -10,6 +14,16 @@ from nbgrader.utils import notebook_hash, make_unique_key
 
 
 class ExchangeReleaseFeedback(Exchange, ABCExchangeReleaseFeedback):
+
+    # TODO: Change to a general solution for all exchange classes.
+    def check_response(self, response):
+        """
+        Raises exceptions if the server response is not good.
+        """
+        if response.status_code != requests.codes.ok:
+            raise RuntimeError('HTTP status code {}'.format(response.status_code))
+        elif not response.json()['success']:
+            raise RuntimeError(response.json()['message'])
 
     def init_src(self):
         student_id = self.coursedir.student_id if self.coursedir.student_id else '*'
@@ -21,15 +35,8 @@ class ExchangeReleaseFeedback(Exchange, ABCExchangeReleaseFeedback):
         if self.coursedir.course_id == '':
             self.fail("No course id specified. Re-run with --course flag.")
 
-        self.course_path = os.path.join(self.root, self.coursedir.course_id)
-        self.outbound_feedback_path = os.path.join(self.course_path, 'feedback')
-        self.dest_path = os.path.join(self.outbound_feedback_path)
-        # 0755
-        self.ensure_directory(
-            self.outbound_feedback_path,
-            (S_IRUSR | S_IWUSR | S_IXUSR | S_IXGRP | S_IXOTH |
-             ((S_IRGRP|S_IWGRP|S_ISGID) if self.coursedir.groupshared else 0))
-        )
+        self.ngshare_url = 'http://172.17.0.1:11111'
+        self.username = os.environ['USER'] # TODO: Get from JupyterHub.
 
     def copy_files(self):
         if self.coursedir.student_id_exclude:
@@ -61,24 +68,27 @@ class ExchangeReleaseFeedback(Exchange, ABCExchangeReleaseFeedback):
                 continue
 
             feedback_dir = os.path.split(html_file)[0]
-            submission_dir = self.coursedir.format_path(
-                self.coursedir.submitted_directory, student_id,
-                self.coursedir.assignment_id)
-
             timestamp = open(os.path.join(feedback_dir, 'timestamp.txt')).read()
-            nbfile = os.path.join(submission_dir, "{}.ipynb".format(notebook_id))
-            unique_key = make_unique_key(
-                self.coursedir.course_id,
-                self.coursedir.assignment_id,
-                notebook_id,
-                student_id,
-                timestamp)
-
-            self.log.debug("Unique key is: {}".format(unique_key))
-            checksum = notebook_hash(nbfile, unique_key)
-            dest = os.path.join(self.dest_path, "{}.html".format(checksum))
 
             self.log.info("Releasing feedback for student '{}' on assignment '{}/{}/{}' ({})".format(
                 student_id, self.coursedir.course_id, self.coursedir.assignment_id, notebook_id, timestamp))
-            shutil.copy(html_file, dest)
-            self.log.info("Feedback released to: {}".format(dest))
+            self.post_feedback(html_file, student_id, timestamp)
+            self.log.info('Feedback released.')
+
+    def post_feedback(self, feedback_file, student_id, timestamp):
+        url = self.ngshare_url + '/api/feedback/{}/{}/{}'.format(
+            self.coursedir.course_id, self.coursedir.assignment_id, student_id)
+        files = json.dumps([self.encode_file(feedback_file)])
+        random_str = '4' # xkcd 221
+        data = {'user': self.username, 'timestamp': timestamp,
+                'random': random_str, 'files': files}
+
+        response = requests.post(url, data=data)
+        self.check_response(response)
+
+    # TODO: Consider moving into Exchange.
+    def encode_file(self, filename):
+        with open(filename, 'rb') as f:
+            content = f.read()
+        return {'path': filename, 'content':
+                base64.encodebytes(content).decode()}
