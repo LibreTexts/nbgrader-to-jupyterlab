@@ -30,9 +30,10 @@ class ExchangeList(Exchange, ABCExchangeList):
         server_error = False
         for course_id in course_ids:
             url = self.ngshare_url + '/api/assignments/{}'.format(course_id)
+            params = {'user': self.username}
             # TODO: Timeout.
             try:
-                response = requests.get(url)
+                response = requests.get(url, params=params)
             except:
                 server_error = True
                 continue
@@ -56,10 +57,11 @@ class ExchangeList(Exchange, ABCExchangeList):
         Returns a list of course_ids.
         """
         url = self.ngshare_url + '/api/courses'
+        params = {'user': self.username}
 
         # TODO: Timeout.
         try:
-            response = requests.get(url)
+            response = requests.get(url, params=params)
         except:
             self.log.warn('An error occurred querying the server for courses.')
             return []
@@ -77,7 +79,7 @@ class ExchangeList(Exchange, ABCExchangeList):
         Returns a list of notebook_ids from the assignment.
         """
         url = self.ngshare_url + '/api/assignment/{}/{}'.format(course_id, assignment_id)
-        params = {'list_only': True}
+        params = {'list_only': True, 'user': self.username}
 
         # TODO: Timeout.
         try:
@@ -113,12 +115,13 @@ class ExchangeList(Exchange, ABCExchangeList):
             assignment_id = assignment['assignment_id']
             url = self.ngshare_url + '/api/submissions/{}/{}'.format(
                     course_id, assignment_id)
+            params = {'user': self.username}
 
             if student_id is not None:
                 url += '/' + student_id
 
             try:
-                response = requests.get(url)
+                response = requests.get(url, params=params)
             except:
                 server_error = True
                 continue
@@ -154,6 +157,7 @@ class ExchangeList(Exchange, ABCExchangeList):
         student_id = self.coursedir.student_id if self.coursedir.student_id else '*'
 
         self.ngshare_url = 'http://172.17.0.1:11111' # TODO: Find server address.
+        self.username = os.environ['USER'] # TODO: Get from JupyterHub.
         if course_id == '*':
             courses = self._get_courses()
         else:
