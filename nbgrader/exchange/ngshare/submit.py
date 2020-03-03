@@ -1,15 +1,8 @@
 import base64
 import os
-from stat import (
-    S_IRUSR, S_IWUSR, S_IXUSR,
-    S_IRGRP, S_IWGRP, S_IXGRP,
-    S_IROTH, S_IWOTH, S_IXOTH
-)
 import json
 
 import requests
-from textwrap import dedent
-from traitlets import Bool
 
 from nbgrader.exchange.abc import ExchangeSubmit as ABCExchangeSubmit
 from .exchange import Exchange
@@ -23,7 +16,7 @@ class ExchangeSubmit(Exchange, ABCExchangeSubmit):
         Returns a list of relative paths for all files in the assignment.
         """
         url = self.ngshare_url + '/api/assignment/{}/{}'.format(course_id,
-            assignment_id)
+                                                                assignment_id)
         params = {'user': self.username, 'list_only': 'true'}
 
         response = requests.get(url, params=params)
@@ -41,7 +34,6 @@ class ExchangeSubmit(Exchange, ABCExchangeSubmit):
             raise RuntimeError('HTTP status code {}'.format(response.status_code))
         elif not response.json()['success']:
             raise RuntimeError(response.json()['message'])
-
 
     def init_src(self):
         if self.path_includes_course:
@@ -61,7 +53,8 @@ class ExchangeSubmit(Exchange, ABCExchangeSubmit):
 
         self.cache_path = os.path.join(self.cache, self.coursedir.course_id)
         if self.coursedir.student_id != '*':
-            self.fail('Submitting assignments with an explicit student ID is not possible with ngshare.')
+            self.fail('Submitting assignments with an explicit student ID is '
+                      'not possible with ngshare.')
         else:
             self.ngshare_url = 'http://172.17.0.1:11111' # TODO
             student_id = os.environ['USER'] # TODO: Get from JupyterHub.
@@ -124,13 +117,12 @@ class ExchangeSubmit(Exchange, ABCExchangeSubmit):
                     "".format(self.coursedir.assignment_id, diff_msg)
                 )
 
-    def encode_dir(self, path): # TODO: Remove.
-        return []
-
     def post_submission(self, src_path):
         encoded_dir = self.encode_dir(src_path)
-        timestamp_content = base64.encodebytes(self.timestamp.encode()).decode()
-        encoded_dir.append({'path': 'timestamp.txt', 'content': timestamp_content})
+        timestamp_content = base64.encodebytes(self.timestamp.encode()).decode(
+            )
+        encoded_dir.append({'path': 'timestamp.txt',
+                            'content': timestamp_content})
 
         url = self.ngshare_url + '/api/submission/{}/{}'.format(
             self.coursedir.course_id, self.coursedir.assignment_id)

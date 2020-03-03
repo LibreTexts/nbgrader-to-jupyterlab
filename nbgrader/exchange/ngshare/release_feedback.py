@@ -1,8 +1,6 @@
 import os
-import shutil
 import glob
 import re
-from stat import S_IRUSR, S_IWUSR, S_IXUSR, S_IRGRP, S_IWGRP, S_IXGRP, S_IXOTH, S_ISGID
 import base64
 import json
 
@@ -10,7 +8,6 @@ import requests
 
 from nbgrader.exchange.abc import ExchangeReleaseFeedback as ABCExchangeReleaseFeedback
 from .exchange import Exchange
-from nbgrader.utils import notebook_hash, make_unique_key
 
 
 class ExchangeReleaseFeedback(Exchange, ABCExchangeReleaseFeedback):

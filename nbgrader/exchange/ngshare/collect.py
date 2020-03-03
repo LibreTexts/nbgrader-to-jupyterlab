@@ -1,17 +1,14 @@
 import os
-import glob
 import shutil
 import sys
 from collections import defaultdict
-from textwrap import dedent
 
 import requests
-from traitlets import Bool
 
 from nbgrader.exchange.abc import ExchangeCollect as ABCExchangeCollect
 from .exchange import Exchange
 
-from nbgrader.utils import check_mode, parse_utc
+from nbgrader.utils import parse_utc
 
 # pwd is for matching unix names with student ide, so we shouldn't import it on
 # windows machines
@@ -95,7 +92,7 @@ class ExchangeCollect(Exchange, ABCExchangeCollect):
         self.ngshare_url = 'http://172.17.0.1:11111' # TODO: Find server address.
         self.username = os.environ['USER'] # TODO: Get from JupyterHub.
         records = self._get_submission_list(self.coursedir.course_id,
-            self.coursedir.assignment_id)
+                                            self.coursedir.assignment_id)
         usergroups = groupby(records, lambda item: item['student_id'])
         self.src_records = [self._sort_by_timestamp(v)[0] for v in usergroups.values()]
 
