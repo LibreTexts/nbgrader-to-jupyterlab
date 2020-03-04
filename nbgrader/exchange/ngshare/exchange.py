@@ -12,9 +12,13 @@ from jupyter_core.paths import jupyter_data_dir
 from nbgrader.exchange.abc import Exchange as ABCExchange
 from nbgrader.exchange import ExchangeError
 from nbgrader.utils import check_directory, ignore_patterns, self_owned
-
+import base64
+import json
 
 class Exchange(ABCExchange):
+    ngshare_url = 'http://172.17.0.3:11111' #need to get IP address of container
+    username = 'Abigail'
+    #username = os.environ['USER'] #FIXME
     assignment_dir = Unicode(
         ".",
         help=dedent(
@@ -65,6 +69,56 @@ class Exchange(ABCExchange):
         """See if the exchange directory exists and is writable, fail if not."""
         if not check_directory(self.root, write=True, execute=True):
             self.fail("Unwritable directory, please contact your instructor: {}".format(self.root))
+
+    def decode_dir(self, src_dir, dest_dir, ignore=None):
+ 
+       '''
+       decode an encoded directory tree and saw the decoded files to des
+       src_dir: en encoded directory tree
+       dest: destination directory path for decoded files
+       ignore: a function that returns true if the file should be ignored,
+       false otherwise. This function takes as arguments the file directory path,
+       file name, and file size in KB.
+       '''
+ 
+       for src_file in src_dir:
+           src_path = src_file['path']
+           path_components = os.path.split(src_path)
+           dir_name = path_components[0]
+           file_name = path_components[1]
+          
+           decoded_content = base64.b64decode(src_file['content'])
+           file_size = len(decoded_content)
+
+           if ignore:
+               self.log.info('NEED TO IGNORE')
+
+           dest_path = os.path.join(dest_dir, file_name)
+ 
+           with open(dest_path, 'wb') as d:
+               d.write(decoded_content)
+
+    def encode_dir(self, src_dir, ignore=None):
+
+        encoded_files = []
+        for subdir, dirs, files in os.walk(src_dir):
+            for filename in files:
+                
+                filepath = subdir + os.sep + filename
+                data_bytes = open(filepath, 'rb').read()
+                if ignore:
+                    if ignore(subdir, filename, len(data_bytes)):
+                        continue
+                
+                self.log.info(filepath)
+                encoded = base64.b64encode(data_bytes)
+                content = str(encoded, 'utf-8')
+                filepath = filename
+                file_map = {'path': filepath, 'content': content}
+                encoded_files.append(file_map)
+        
+        dir_tree = {'user': self.username, 'files': json.dumps(encoded_files)}
+        return dir_tree
 
     def init_src(self):
         """Compute and check the source paths for the transfer."""
@@ -147,3 +201,5 @@ class Exchange(ABCExchange):
         else:
             if not self.coursedir.groupshared and not self_owned(path):
                 self.fail("You don't own the directory: {}".format(path))
+
+    
