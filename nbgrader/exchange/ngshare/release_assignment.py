@@ -74,15 +74,14 @@ class ExchangeReleaseAssignment(Exchange, ABCExchangeReleaseAssignment):
             self.log.info("created course")
     '''
     def init_dest(self):
-        data = {'user': self.username}
-        course_url = self.ngshare_url + '/api/course/{}'.format(self.coursedir.course_id)
-        response = requests.post(url = course_url, data = data)
+        #data = {'user': self.username}
+        #course_url = self.ngshare_url + '/api/course/{}'.format(self.coursedir.course_id)
+        #response = requests.post(url = course_url, data = data)
         #self._check_if_course_exists()
         self.dest_path = self.ngshare_url + '/api/assignment/{}/{}'.format(self.coursedir.course_id, self.coursedir.assignment_id)
 
     def copy_files(self):
-
-        
+       
         try:
             data = self.encode_dir(self.src_path)
             response = requests.post(url = self.dest_patht, data = data)
