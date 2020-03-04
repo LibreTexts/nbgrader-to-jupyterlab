@@ -69,7 +69,8 @@ class ExchangeReleaseFeedback(Exchange, ABCExchangeReleaseFeedback):
 
             self.log.info("Releasing feedback for student '{}' on assignment '{}/{}/{}' ({})".format(
                 student_id, self.coursedir.course_id, self.coursedir.assignment_id, notebook_id, timestamp))
-            self.post_feedback(html_file, student_id, timestamp)
+            self.post_feedback(os.path.split(html_file)[1], student_id,
+                               timestamp)
             self.log.info('Feedback released.')
 
     def post_feedback(self, feedback_file, student_id, timestamp):
