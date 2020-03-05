@@ -94,6 +94,10 @@ class Exchange(ABCExchange):
                self.log.info('NEED TO IGNORE')
 
            dest_path = os.path.join(dest_dir, file_name)
+           dest_dir = os.path.split(dest_path)[0]
+
+           if not os.path.exists(dest_dir):
+               os.makedirs(dest_dir)
  
            with open(dest_path, 'wb') as d:
                d.write(decoded_content)
