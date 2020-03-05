@@ -84,9 +84,9 @@ class ExchangeReleaseAssignment(Exchange, ABCExchangeReleaseAssignment):
        
         try:
             data = self.encode_dir(self.src_path)
-            response = requests.post(url = self.dest_patht, data = data)
+            response = requests.post(url = self.dest_path, data = data)
         except:
-            self.log.warn('An error occurred while trying to release 2 {}'.format(self.coursedir.assignment_id))
+            self.log.warn('An error occurred while trying to release {}'.format(self.coursedir.assignment_id))
             
         if response.status_code != requests.codes.ok:
             self.log.warn('An error occurred while trying to release {}'.format(self.coursedir.assignment_id))  

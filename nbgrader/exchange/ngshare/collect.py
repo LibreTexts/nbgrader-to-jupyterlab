@@ -136,6 +136,8 @@ class ExchangeCollect(Exchange, ABCExchangeCollect):
                     self.log.info("Collecting submission: {} {}".format(student_id, self.coursedir.assignment_id))
                 submission = self._get_submission(self.coursedir.course_id,
                     self.coursedir.assignment_id, student_id)
+                if submission is None:
+                    continue
                 self.do_copy(submission['files'], dest_path)
             else:
                 if self.update:
@@ -151,4 +153,4 @@ class ExchangeCollect(Exchange, ABCExchangeCollect):
         """
         Repurposed version of Exchange.do_copy.
         """
-        self.encode_dir(src, dest)
+        self.decode_dir(src, dest)

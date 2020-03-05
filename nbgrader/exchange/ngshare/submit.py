@@ -121,12 +121,13 @@ class ExchangeSubmit(Exchange, ABCExchangeSubmit):
         encoded_dir = self.encode_dir(src_path)
         timestamp_content = base64.encodebytes(self.timestamp.encode()).decode(
             )
-        encoded_dir.append({'path': 'timestamp.txt',
-                            'content': timestamp_content})
+        #encoded_dir.append({'path': 'timestamp.txt',
+        #                    'content': timestamp_content})
 
         url = self.ngshare_url + '/api/submission/{}/{}'.format(
             self.coursedir.course_id, self.coursedir.assignment_id)
-        data = {'user': self.username, 'files': json.dumps(encoded_dir)}
+        #data = {'user': self.username, 'files': json.dumps(encoded_dir)}
+        data = encoded_dir
 
         response = requests.post(url, data=data)
         self.check_response(response)
