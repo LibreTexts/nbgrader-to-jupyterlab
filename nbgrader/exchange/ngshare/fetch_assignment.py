@@ -61,6 +61,6 @@ class ExchangeFetchAssignment(Exchange, ABCExchangeFetchAssignment):
         try:
             self.decode_dir(response.json()['files'], self.dest_path, ignore=shutil.ignore_patterns(*self.coursedir.ignore))
         except:
-            
+            self.log.warn("Could not decode the assignment")
         
         self.log.info("Fetched as: {} {}".format(self.coursedir.course_id, self.coursedir.assignment_id))
