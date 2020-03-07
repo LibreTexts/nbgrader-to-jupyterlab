@@ -44,23 +44,23 @@ class ExchangeFetchAssignment(Exchange, ABCExchangeFetchAssignment):
     def copy_files(self):
         try:
             params = {'user': self.username}
-            response = requests.get(self.src_path, params)          
+            response = requests.get(self.src_path, params=params)          
         except:
             self.log.warn('An error occurred while trying to get assignment {}'.format(self.coursedir.assignment_id))
         
         if response.status_code != requests.codes.ok:
-            self.log.warn('An error occurred while trying to release {}'.format(self.coursedir.assignment_id))
+            self.log.warn("An error occurred while trying to fetch {}".format(self.coursedir.assignment_id))
+            self.log.warn("Status Code: {}".format(response.status_code))
         elif not response.json()['success']:
-            self.log.warn('An error occurred while trying to release {}'.format(self.coursedir.assignment_id))
-            self.log.warn(response.json()['message'])
+            self.log.warn("Failed to fetch assignment. Reason: {}". format(response.json()['message']))
         else:
-            self.log.info("Successfully fetched {}".format(self.coursedir.assignment_id))
+            self.log.info("Successfully fetched {}. Will try to decode".format(self.coursedir.assignment_id))
         
-        if not os.path.exists(self.dest_path):
-            os.mkdir(self.dest_path)
-        try:
-            self.decode_dir(response.json()['files'], self.dest_path, ignore=shutil.ignore_patterns(*self.coursedir.ignore))
-        except:
-            self.log.warn("Could not decode the assignment")
-        
-        self.log.info("Fetched as: {} {}".format(self.coursedir.course_id, self.coursedir.assignment_id))
+            if not os.path.exists(self.dest_path):
+                os.mkdir(self.dest_path)
+            try:
+                self.decode_dir(response.json()['files'], self.dest_path, ignore=shutil.ignore_patterns(*self.coursedir.ignore))
+            except:
+                self.log.warn("Could not decode the assignment")
+            
+            self.log.info("Fetched as: {} {}".format(self.coursedir.course_id, self.coursedir.assignment_id))
