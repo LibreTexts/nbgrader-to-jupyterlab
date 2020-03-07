@@ -71,7 +71,7 @@ class Exchange(ABCExchange):
             self.fail("Unwritable directory, please contact your instructor: {}".format(self.root))
 
     def decode_dir(self, src_dir, dest_dir, ignore=None):
- 
+        
        '''
        decode an encoded directory tree and saw the decoded files to des
        src_dir: en encoded directory tree
@@ -80,24 +80,29 @@ class Exchange(ABCExchange):
        false otherwise. This function takes as arguments the file directory path,
        file name, and file size in KB.
        '''
+
+       # check if the destination directory exists
+        if not os.path.exists(dest_dir):
+            os.mkdir(dest_dir)
  
        for src_file in src_dir:
            src_path = src_file['path']
            path_components = os.path.split(src_path)
            dir_name = path_components[0]
            file_name = path_components[1]
-          
+
+           # the file could be in a subdirectory, check if directory exists 
+           if not os.path.exists(dir_name):
+               os.mkdir(dir_name) 
+           
            decoded_content = base64.b64decode(src_file['content'])
            file_size = len(decoded_content)
 
            if ignore:
-               self.log.info('NEED TO IGNORE')
+               if ignore(dir_name, file_name, file_size):
+                   continue
 
            dest_path = os.path.join(dest_dir, file_name)
-           dest_dir = os.path.split(dest_path)[0]
-
-           if not os.path.exists(dest_dir):
-               os.makedirs(dest_dir)
  
            with open(dest_path, 'wb') as d:
                d.write(decoded_content)
