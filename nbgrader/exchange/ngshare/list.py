@@ -252,7 +252,7 @@ class ExchangeList(Exchange, ABCExchangeList):
             if self.remove:
                 info['status'] = 'removed'
 
-            if self.cached:
+            if self.cached or info['status'] == 'fetched':
                 notebooks = sorted(glob.glob(os.path.join(info['path'], '*.ipynb')))
             elif self.inbound:
                 notebooks = sorted(assignment['notebooks'])
@@ -282,6 +282,9 @@ class ExchangeList(Exchange, ABCExchangeList):
                     }
                 elif self.inbound:
                     nb_info = {'notebook_id': notebook['notebook_id']}
+                elif info['status'] == 'fetched':
+                    nb_info = {'notebook_id': notebook,
+                               'path': os.path.abspath(notebook)}
                 else:
                     nb_info = {'notebook_id': notebook}
                 if info['status'] != 'submitted':
