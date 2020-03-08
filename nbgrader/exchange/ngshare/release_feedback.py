@@ -41,6 +41,7 @@ class ExchangeReleaseFeedback(Exchange, ABCExchangeReleaseFeedback):
         else:
             exclude_students = set()
 
+        staged_feedback = {}  # Maps student IDs to submissions.
         html_files = glob.glob(os.path.join(self.src_path, "*.html"))
         for html_file in html_files:
             regexp = re.escape(os.path.sep).join([
@@ -65,28 +66,51 @@ class ExchangeReleaseFeedback(Exchange, ABCExchangeReleaseFeedback):
                 continue
 
             feedback_dir = os.path.split(html_file)[0]
-            timestamp = open(os.path.join(feedback_dir, 'timestamp.txt')).read()
+            with open(os.path.join(feedback_dir, 'timestamp.txt')) as\
+                    timestamp_file:
+                timestamp = timestamp_file.read()
 
-            self.log.info("Releasing feedback for student '{}' on assignment '{}/{}/{}' ({})".format(
-                student_id, self.coursedir.course_id, self.coursedir.assignment_id, notebook_id, timestamp))
-            self.post_feedback(os.path.split(html_file)[1], student_id,
-                               timestamp)
-            self.log.info('Feedback released.')
+            if student_id not in staged_feedback.keys():
+                staged_feedback[student_id] = {}  # Maps timestamp to feedback.
+            if timestamp not in staged_feedback[student_id].keys():
+                staged_feedback[student_id][timestamp] = []  # List of info.
+            staged_feedback[student_id][timestamp].append(
+                {'notebook_id': notebook_id, 'path': html_file})
 
-    def post_feedback(self, feedback_file, student_id, timestamp):
+        for student_id, submission in staged_feedback.items():  # Student.
+            for timestamp, feedback_info in submission.items():  # Submission.
+                self.log.info("Releasing feedback for student '{}' on "
+                              "assignment '{}/{}/{}' ({})".format(
+                                student_id, self.coursedir.course_id,
+                                self.coursedir.assignment_id, notebook_id,
+                                timestamp))
+                try:
+                    self.post_feedback(student_id, timestamp, feedback_info)
+                    self.log.info('Feedback released.')
+                except Exception as e:
+                    self.log.error('Failed to upload feedback to server. '
+                                   'Reason: {}' .format(e))
+
+    def post_feedback(self, student_id, timestamp, feedback_info):
+        """
+        Uploads feedback files for a specific submission.
+        ``feedback_info`` - A list of feedback files. Each feedback file is
+        represented as a dictionary with a "path" to the local feedback file and
+        "notebook_id" of the corresponding notebook.
+        """
         url = self.ngshare_url + '/api/feedback/{}/{}/{}'.format(
             self.coursedir.course_id, self.coursedir.assignment_id, student_id)
-        files = json.dumps([self.encode_file(feedback_file)])
-        random_str = '4' # xkcd 221
-        data = {'user': self.username, 'timestamp': timestamp,
-                'random': random_str, 'files': files}
+        files = json.dumps([self.encode_file(x['path'],
+                                             '{}.html'.format(x['notebook_id'])
+                                             ) for x in feedback_info])
+        data = {'user': self.username, 'timestamp': timestamp, 'files': files}
 
         response = requests.post(url, data=data)
         self.check_response(response)
 
     # TODO: Consider moving into Exchange.
-    def encode_file(self, filename):
-        with open(filename, 'rb') as f:
+    def encode_file(self, filesystem_path, assignment_path):
+        with open(filesystem_path, 'rb') as f:
             content = f.read()
-        return {'path': filename, 'content':
+        return {'path': assignment_path, 'content':
                 base64.encodebytes(content).decode()}
