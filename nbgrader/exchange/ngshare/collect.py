@@ -59,12 +59,8 @@ class ExchangeCollect(Exchange, ABCExchangeCollect):
             course_id, assignment_id)
         params = {'user': self.username}
 
-        try:
-            response = requests.get(url, params=params)
-        except Exception as e:
-            self.log.error('An error occurred querying submissions.')
-            print(e)
-            return []
+        response = requests.get(url, params=params)
+        # TODO: self.check_response(response)
 
         if response.status_code != requests.codes.ok or not response.json()['success']:
             return []
@@ -92,8 +88,11 @@ class ExchangeCollect(Exchange, ABCExchangeCollect):
 
         self.ngshare_url = 'http://172.17.0.1:11111' # TODO: Find server address.
         self.username = os.environ['USER'] # TODO: Get from JupyterHub.
-        records = self._get_submission_list(self.coursedir.course_id,
-                                            self.coursedir.assignment_id)
+        try:
+            records = self._get_submission_list(self.coursedir.course_id,
+                                                self.coursedir.assignment_id)
+        except Exception as e:
+            self.fail('Failed to list submissions. Reason: {}'.format(e))
         usergroups = groupby(records, lambda item: item['student_id'])
         self.src_records = [self._sort_by_timestamp(v)[0] for v in usergroups.values()]
 
