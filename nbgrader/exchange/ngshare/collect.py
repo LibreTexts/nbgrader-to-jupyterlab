@@ -2,6 +2,7 @@ import os
 import shutil
 import sys
 from collections import defaultdict
+import base64
 
 import requests
 
@@ -47,8 +48,11 @@ class ExchangeCollect(Exchange, ABCExchangeCollect):
             self.log.error('An error occurred downloading a submission.')
             return None
 
-        return {'timestamp': response.json()['timestamp'],
-                'files': response.json()['files']}
+        timestamp = response.json()['timestamp']
+        files = response.json()['files']
+        files.append({'path': 'timestamp.txt', 'content':
+                      base64.encodebytes(timestamp.encode()).decode()})
+        return {'timestamp': timestamp, 'files': files}
 
     def _get_submission_list(self, course_id, assignment_id):
         """
