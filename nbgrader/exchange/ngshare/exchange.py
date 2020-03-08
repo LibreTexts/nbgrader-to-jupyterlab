@@ -84,20 +84,23 @@ class Exchange(ABCExchange):
             path_components = os.path.split(src_path)
             dir_name = path_components[0]
             file_name = path_components[1]
-            self.log.info('decoding: {}'.format(file_name))
-           # the file could be in a subdirectory, check if directory exists
+            
+            dest_path = os.path.join(dest_dir, file_name)
+            # the file could be in a subdirectory, check if directory exists
             if not os.path.exists(dir_name) and dir_name != '':
-                os.mkdir(dir_name)
+                subdir = os.path.join(dest_dir, dir_name)
+                if not os.path.exists(subdir):
+                    os.mkdir(subdir)
+                dest_path = os.path.join(subdir, file_name)
 
+            self.log.info('Decoding: {}'.format(dest_path))
             decoded_content = base64.b64decode(src_file['content'])
             file_size = len(decoded_content)
 
             if ignore:
                 if ignore(dir_name, file_name, file_size):
                     continue
-
-            dest_path = os.path.join(dest_dir, file_name)
-
+            
             with open(dest_path, 'wb') as d:
                 d.write(decoded_content)
 
@@ -105,14 +108,20 @@ class Exchange(ABCExchange):
         encoded_files = []
         for (subdir, dirs, files) in os.walk(src_dir):
             for file_name in files:
-                self.log.info('Encoding: {}'.format(file_name))
                 file_path = subdir + os.sep + file_name
                 data_bytes = open(file_path, 'rb').read()
                 if ignore:
                     if ignore(subdir, file_name, len(data_bytes)):
                         continue
                 
-                file_path = file_name
+                # check if you have a subdir
+                sub_dir = subdir.split(os.sep)[-1]
+                if sub_dir != self.coursedir.assignment_id:
+                    file_path = sub_dir + os.sep + file_name
+                else:
+                    file_path = file_name
+
+                self.log.info('Encoding: {}'.format(file_path))
                 encoded = base64.b64encode(data_bytes)
                 content = str(encoded, 'utf-8')
                 file_map = {'path': file_path, 'content': content}
