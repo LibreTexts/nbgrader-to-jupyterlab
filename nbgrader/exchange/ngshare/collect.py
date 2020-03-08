@@ -69,7 +69,8 @@ class ExchangeCollect(Exchange, ABCExchangeCollect):
         if response.status_code != requests.codes.ok or not response.json()['success']:
             return []
 
-        return [{'student_id': x['student_id'], 'timestamp': x['timestamp']}
+        return [{'student_id': x['student_id'],
+                 'timestamp': parse_utc(x['timestamp'])}
                 for x in response.json()['submissions']]
 
     def _path_to_record(self, path):
