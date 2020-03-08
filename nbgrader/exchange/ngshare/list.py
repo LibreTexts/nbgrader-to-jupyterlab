@@ -15,7 +15,46 @@ def _checksum(path):
     return m.hexdigest()
 
 
+def _merge_notebooks_feedback(notebook_ids, checksums):
+    """
+    Returns a list of dictionaries with "notebook_id" and "feedback_checksum".
+
+    ``notebook_ids`` - A list of notebook IDs.
+    ``checksum`` - A dictionary mapping notebook IDs to checksums.
+    """
+    merged = []
+    for nb_id in notebook_ids:
+        if nb_id not in checksums.keys():
+            checksum = None
+        else:
+            checksum = checksums[nb_id]
+        merged.append({'notebook_id': nb_id, 'feedback_checksum': checksum})
+    return merged
+
+
+def _parse_notebook_id(path):
+    """
+    Returns the notebook_id from the path. If the path is not an ipynb file,
+    returns None.
+    """
+    split_name = os.path.splitext(os.path.split(path)[1])
+    if split_name[1] == '.ipynb':
+        return split_name[0]
+    return None
+
+
 class ExchangeList(Exchange, ABCExchangeList):
+
+    # TODO: Change to a general solution for all exchange classes.
+    def check_response(self, response):
+        """
+        Raises exceptions if the server response is not good.
+        """
+        if response.status_code != requests.codes.ok:
+            raise RuntimeError('HTTP status code {}'
+                               .format(response.status_code))
+        elif not response.json()['success']:
+            raise RuntimeError(response.json()['message'])
 
     def _get_assignments(self, course_ids):
         """
@@ -72,6 +111,30 @@ class ExchangeList(Exchange, ABCExchangeList):
             return []
 
         return response.json()['courses']
+
+    def _get_feedback_checksums(self, course_id, assignment_id, student_id,
+                                timestamp):
+        """
+        Returns the checksums of all feedback files for a specific submission.
+        This is a dictionary mapping all notebook_ids to the feedback file's
+        checksum.
+        """
+        url = self.ngshare_url + '/api/feedback/{}/{}/{}'.format(course_id,
+                                                                 assignment_id,
+                                                                 student_id)
+        params = {'list_only': True, 'timestamp': timestamp,
+                  'user': self.username}
+
+        response = requests.get(url, params=params)
+        self.check_response(response)
+
+        checksums = {}
+        for file_entry in response.json()['files']:
+            notebook_id = _parse_notebook_id(file_entry['path'])
+            if notebook_id is not None:
+                checksums[notebook_id] = file_entry['checksum']
+
+        return checksums
 
     def _get_notebooks(self, course_id, assignment_id):
         """
@@ -137,20 +200,47 @@ class ExchangeList(Exchange, ABCExchangeList):
                 continue
 
             for submission in response_json['submissions']:
+                notebook_ids = self._get_submission_notebooks(
+                    course_id, assignment_id, submission['student_id'],
+                    submission['timestamp'])
+                feedback_checksums = self._get_feedback_checksums(
+                    course_id, assignment_id, submission['student_id'],
+                    submission['timestamp'])
+                notebooks = _merge_notebooks_feedback(notebook_ids,
+                                                      feedback_checksums)
                 submissions.append({
                         'course_id': course_id,
                         'assignment_id': assignment_id,
-                        'student_id': submission['student_id'] if student_id
-                        is None else student_id,
+                        'student_id': submission['student_id'],
                         'timestamp': submission['timestamp'],
-                        #TODO 'notebooks': submission['notebooks']})
-                        'notebooks': []})
+                        'notebooks': notebooks})
 
         if server_error:
             self.log.warn('An error occurred querying the server for '
                           'submissions.')
 
         return submissions
+
+    def _get_submission_notebooks(self, course_id, assignment_id, student_id,
+                                  timestamp):
+        """
+        Returns a list of notebook_ids from a submission.
+        """
+        url = self.ngshare_url + '/api/submission/{}/{}/{}'.format(
+                course_id, assignment_id, student_id)
+        params = {'user': self.username, 'list_only': 'true',
+                  'timestamp': timestamp}
+
+        response = requests.get(url, params=params)
+        self.check_response(response)
+
+        notebooks = []
+        for file_entry in response.json()['files']:
+            notebook_id = _parse_notebook_id(file_entry['path'])
+            if notebook_id is not None:
+                notebooks.append(notebook_id)
+
+        return notebooks
 
     def init_src(self):
         pass
@@ -160,8 +250,6 @@ class ExchangeList(Exchange, ABCExchangeList):
         assignment_id = self.coursedir.assignment_id if self.coursedir.assignment_id else '*'
         student_id = self.coursedir.student_id if self.coursedir.student_id else '*'
 
-        self.ngshare_url = 'http://172.17.0.1:11111' # TODO: Find server address.
-        self.username = os.environ['USER'] # TODO: Get from JupyterHub.
         if course_id == '*':
             courses = self._get_courses()
         else:
@@ -255,10 +343,12 @@ class ExchangeList(Exchange, ABCExchangeList):
             if self.cached or info['status'] == 'fetched':
                 notebooks = sorted(glob.glob(os.path.join(info['path'], '*.ipynb')))
             elif self.inbound:
-                notebooks = sorted(assignment['notebooks'])
+                def nb_key(nb):
+                    return nb['notebook_id']
+                notebooks = sorted(assignment['notebooks'], key=nb_key)
             else:
-                notebooks = self._get_notebooks(info['course_id'],
-                                                info['assignment_id'])
+                notebooks = sorted(self._get_notebooks(info['course_id'],
+                                                       info['assignment_id']))
 
             if not notebooks:
                 self.log.warning('No notebooks found for assignment "{}" in '
