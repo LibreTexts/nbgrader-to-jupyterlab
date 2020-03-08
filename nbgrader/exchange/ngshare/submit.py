@@ -56,9 +56,7 @@ class ExchangeSubmit(Exchange, ABCExchangeSubmit):
             self.fail('Submitting assignments with an explicit student ID is '
                       'not possible with ngshare.')
         else:
-            self.ngshare_url = 'http://172.17.0.1:11111' # TODO
-            student_id = os.environ['USER'] # TODO: Get from JupyterHub.
-            self.username = student_id
+            student_id = self.username
         if self.add_random_string:
             random_str = base64.urlsafe_b64encode(os.urandom(9)).decode('ascii')
             self.assignment_filename = '{}+{}+{}+{}'.format(
@@ -119,17 +117,10 @@ class ExchangeSubmit(Exchange, ABCExchangeSubmit):
 
     def post_submission(self, src_path):
         encoded_dir = self.encode_dir(src_path)
-        timestamp_content = base64.encodebytes(self.timestamp.encode()).decode(
-            )
-        #encoded_dir.append({'path': 'timestamp.txt',
-        #                    'content': timestamp_content})
-
         url = self.ngshare_url + '/api/submission/{}/{}'.format(
             self.coursedir.course_id, self.coursedir.assignment_id)
-        #data = {'user': self.username, 'files': json.dumps(encoded_dir)}
-        data = encoded_dir
 
-        response = requests.post(url, data=data)
+        response = requests.post(url, data=encoded_dir)
         self.check_response(response)
 
     def copy_files(self):
