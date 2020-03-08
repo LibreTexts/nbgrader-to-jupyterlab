@@ -69,16 +69,6 @@ class ExchangeCollect(Exchange, ABCExchangeCollect):
                  'timestamp': parse_utc(x['timestamp'])}
                 for x in response.json()['submissions']]
 
-    def _path_to_record(self, path):
-        filename = os.path.split(path)[1]
-        # Only split twice on +, giving three components. This allows usernames with +.
-        filename_list = filename.rsplit('+', 3)
-        if len(filename_list) < 3:
-            self.fail("Invalid filename: {}".format(filename))
-        username = filename_list[0]
-        timestamp = parse_utc(filename_list[2])
-        return {'username': username, 'filename': filename, 'timestamp': timestamp}
-
     def _sort_by_timestamp(self, records):
         return sorted(records, key=lambda item: item['timestamp'], reverse=True)
 
