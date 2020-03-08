@@ -80,8 +80,6 @@ class ExchangeCollect(Exchange, ABCExchangeCollect):
         if self.coursedir.course_id == '':
             self.fail("No course id specified. Re-run with --course flag.")
 
-        self.ngshare_url = 'http://172.17.0.1:11111' # TODO: Find server address.
-        self.username = os.environ['USER'] # TODO: Get from JupyterHub.
         try:
             records = self._get_submission_list(self.coursedir.course_id,
                                                 self.coursedir.assignment_id)

@@ -32,9 +32,6 @@ class ExchangeReleaseFeedback(Exchange, ABCExchangeReleaseFeedback):
         if self.coursedir.course_id == '':
             self.fail("No course id specified. Re-run with --course flag.")
 
-        self.ngshare_url = 'http://172.17.0.1:11111'
-        self.username = os.environ['USER'] # TODO: Get from JupyterHub.
-
     def copy_files(self):
         if self.coursedir.student_id_exclude:
             exclude_students = set(self.coursedir.student_id_exclude.split(','))
