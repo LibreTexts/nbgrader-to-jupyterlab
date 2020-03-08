@@ -55,7 +55,7 @@ class ExchangeFetchFeedback(Exchange, ABCExchangeFetchFeedback):
 
         self.log.info(self.timestamps)
         for timestamp in self.timestamps:
-            imestamp = parse_utc(timestamp)
+            timestamp = parse_utc(timestamp)
             params = {'timestamp': timestamp, 'list_only': 'false', 'user': self.username}
 
             try:
