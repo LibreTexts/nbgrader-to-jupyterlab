@@ -10,15 +10,10 @@ from stat import (
 from traitlets import Bool
 
 from nbgrader.exchange.abc import ExchangeReleaseAssignment as ABCExchangeReleaseAssignment
-from nbgrader.exchange.ngshare import Exchange
-
-import requests
-import json
+from nbgrader.exchange.default import Exchange
 
 
 class ExchangeReleaseAssignment(Exchange, ABCExchangeReleaseAssignment):
-
-    force = Bool(False, help="Force overwrite existing files in the exchange.").tag(config=True)
 
     def _load_config(self, cfg, **kwargs):
         if 'ExchangeRelease' in cfg:
@@ -35,11 +30,31 @@ class ExchangeReleaseAssignment(Exchange, ABCExchangeReleaseAssignment):
         super(ExchangeReleaseAssignment, self)._load_config(cfg, **kwargs)
 
     def ensure_root(self):
-        pass
+        perms = S_IRUSR|S_IWUSR|S_IXUSR|S_IRGRP|S_IWGRP|S_IXGRP|S_IROTH|S_IWOTH|S_IXOTH|((S_IWGRP|S_ISGID) if self.coursedir.groupshared else 0)
+
+        # if root doesn't exist, create it and set permissions
+        if not os.path.exists(self.root):
+            self.log.warning("Creating exchange directory: {}".format(self.root))
+            try:
+                os.makedirs(self.root)
+                os.chmod(self.root, perms)
+            except PermissionError:
+                self.fail("Could not create {}, permission denied.".format(self.root))
+
+        else:
+            old_perms = oct(os.stat(self.root)[ST_MODE] & 0o777)
+            new_perms = oct(perms & 0o777)
+            if old_perms != new_perms:
+                self.log.warning(
+                    "Permissions for exchange directory ({}) are invalid, changing them from {} to {}".format(
+                        self.root, old_perms, new_perms))
+                try:
+                    os.chmod(self.root, perms)
+                except PermissionError:
+                    self.fail("Could not change permissions of {}, permission denied.".format(self.root))
 
     def init_src(self):
         self.src_path = self.coursedir.format_path(self.coursedir.release_directory, '.', self.coursedir.assignment_id)
-
         if not os.path.isdir(self.src_path):
             source = self.coursedir.format_path(self.coursedir.source_directory, '.', self.coursedir.assignment_id)
             if os.path.isdir(source):
@@ -51,48 +66,49 @@ class ExchangeReleaseAssignment(Exchange, ABCExchangeReleaseAssignment):
                     self.src_path,
                     self.coursedir.format_path(self.coursedir.release_directory, '.', '*'))
 
-    '''
-    def _check_if_course_exists(self):
-        data = {'user': self.username}
-        list_url = self.ngshare_url + '/api/courses'
-        try:
-
-            response = requests.post(url = list_url, data = data)
-        except:
-            self.log.warm("Error occured while trying to list all courses")
-        self.log.info(response.json()['success'])
-        if response.json()['success']:
-            courses = response.json()['courses']
-
-            for course in courses:
-                if course == self.self.coursedir.course_id:
-                    return 
-
-            # if you got here couse doesn exist so create it
-            course_url = self.ngshare_url + '/api/course/{}'.format(self.coursedir.course_id)
-            response = requests.post(url = course_url, data = data)
-            self.log.info("created course")
-    '''
     def init_dest(self):
-        #data = {'user': self.username}
-        #course_url = self.ngshare_url + '/api/course/{}'.format(self.coursedir.course_id)
-        #response = requests.post(url = course_url, data = data)
-        #self._check_if_course_exists()
-        self.dest_path = self.ngshare_url + '/api/assignment/{}/{}'.format(self.coursedir.course_id, self.coursedir.assignment_id)
+        if self.coursedir.course_id == '':
+            self.fail("No course id specified. Re-run with --course flag.")
+
+        self.course_path = os.path.join(self.root, self.coursedir.course_id)
+        self.outbound_path = os.path.join(self.course_path, 'outbound')
+        self.inbound_path = os.path.join(self.course_path, 'inbound')
+        self.dest_path = os.path.join(self.outbound_path, self.coursedir.assignment_id)
+        # 0755
+        # groupshared: +2040
+        self.ensure_directory(
+            self.course_path,
+            S_IRUSR|S_IWUSR|S_IXUSR|S_IRGRP|S_IXGRP|S_IROTH|S_IXOTH|((S_ISGID|S_IWGRP) if self.coursedir.groupshared else 0)
+        )
+        # 0755
+        # groupshared: +2040
+        self.ensure_directory(
+            self.outbound_path,
+            S_IRUSR|S_IWUSR|S_IXUSR|S_IRGRP|S_IXGRP|S_IROTH|S_IXOTH|((S_ISGID|S_IWGRP) if self.coursedir.groupshared else 0)
+        )
+        # 0733 with set GID so student submission will have the instructors group
+        # groupshared: +0040
+        self.ensure_directory(
+            self.inbound_path,
+            S_ISGID|S_IRUSR|S_IWUSR|S_IXUSR|S_IWGRP|S_IXGRP|S_IWOTH|S_IXOTH|(S_IRGRP if self.coursedir.groupshared else 0)
+        )
 
     def copy_files(self):
-       
-        try:
-            data = self.encode_dir(self.src_path)
-            response = requests.post(url = self.dest_path, data = data)
-        except:
-            self.log.warn('An error occurred while trying to release {}'.format(self.coursedir.assignment_id))
-            
-        if response.status_code != requests.codes.ok:
-            self.log.warn('An error occurred while trying to release {}'.format(self.coursedir.assignment_id))  
-        elif not response.json()['success']:
-            self.log.warn('An error occurred while trying to release {}'.format(self.coursedir.assignment_id)) 
-            self.log.warn(response.json()['message'])
-        else:
-            self.log.info("Successfully released {}".format(self.coursedir.assignment_id))
-        
+        if os.path.isdir(self.dest_path):
+            if self.force:
+                self.log.info("Overwriting files: {} {}".format(
+                    self.coursedir.course_id, self.coursedir.assignment_id
+                ))
+                shutil.rmtree(self.dest_path)
+            else:
+                self.fail("Destination already exists, add --force to overwrite: {} {}".format(
+                    self.coursedir.course_id, self.coursedir.assignment_id
+                ))
+        self.log.info("Source: {}".format(self.src_path))
+        self.log.info("Destination: {}".format(self.dest_path))
+        self.do_copy(self.src_path, self.dest_path)
+        self.set_perms(
+            self.dest_path,
+            fileperms=(S_IRUSR|S_IWUSR|S_IRGRP|S_IROTH|(S_IWGRP if self.coursedir.groupshared else 0)),
+            dirperms=(S_IRUSR|S_IWUSR|S_IXUSR|S_IRGRP|S_IXGRP|S_IROTH|S_IXOTH|((S_ISGID|S_IWGRP) if self.coursedir.groupshared else 0)))
+        self.log.info("Released as: {} {}".format(self.coursedir.course_id, self.coursedir.assignment_id))
