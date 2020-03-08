@@ -6,7 +6,7 @@ import requests
 
 from nbgrader.exchange.abc import ExchangeSubmit as ABCExchangeSubmit
 from .exchange import Exchange
-from nbgrader.utils import find_all_notebooks
+from nbgrader.utils import find_all_notebooks, parse_utc
 
 
 class ExchangeSubmit(Exchange, ABCExchangeSubmit):
@@ -124,23 +124,22 @@ class ExchangeSubmit(Exchange, ABCExchangeSubmit):
         response = requests.post(url, data=encoded_dir)
         self.check_response(response)
 
-    def copy_files(self):
-        if self.add_random_string:
-            cache_path = os.path.join(self.cache_path, self.assignment_filename.rsplit('+', 1)[0])
-        else:
-            cache_path = os.path.join(self.cache_path, self.assignment_filename)
+        return response.json()['timestamp']
 
+    def copy_files(self):
         self.log.info("Source: {}".format(self.src_path))
 
         # copy to the real location
         self.check_filename_diff()
         try:
-            self.post_submission(self.src_path)
+            self.timestamp = self.post_submission(self.src_path)
         except Exception as e:
             self.log.error('Failed to submit. Reason: "{}"'.format(e))
             return
 
         # also copy to the cache
+        cache_path = os.path.join(self.cache_path, '{}+{}+{}'.format(
+            self.username, self.coursedir.assignment_id, self.timestamp))
         if not os.path.isdir(self.cache_path):
             os.makedirs(self.cache_path)
         self.do_copy(self.src_path, cache_path)
