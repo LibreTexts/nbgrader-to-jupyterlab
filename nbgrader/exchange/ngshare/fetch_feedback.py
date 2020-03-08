@@ -1,5 +1,4 @@
 #!/usr/bin/python
-# -*- coding: utf-8 -*-
 import os
 import shutil
 import glob
@@ -11,9 +10,6 @@ from nbgrader.utils import check_mode, notebook_hash, make_unique_key, \
     get_username
 from nbgrader.utils import parse_utc
 import requests
-
-
-# /api/feedback/course1/challenge/Lawrence
 
 class ExchangeFetchFeedback(Exchange, ABCExchangeFetchFeedback):
 
