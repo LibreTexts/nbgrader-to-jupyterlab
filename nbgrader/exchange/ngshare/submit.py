@@ -23,7 +23,8 @@ class ExchangeSubmit(Exchange, ABCExchangeSubmit):
 
         self.check_response(response)
 
-        return [x['path'] for x in response.json()['files']]
+        return [x['path'] for x in response.json()['files'] if
+                os.path.splitext(x['path'])[1] == '.ipynb']
 
     # TODO: Change to a general solution for all exchange classes.
     def check_response(self, response):
