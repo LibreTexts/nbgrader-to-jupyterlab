@@ -1,4 +1,5 @@
 #!/usr/bin/python
+# -*- coding: utf-8 -*-
 import os
 import shutil
 import glob
@@ -10,6 +11,9 @@ from nbgrader.utils import check_mode, notebook_hash, make_unique_key, \
     get_username
 from nbgrader.utils import parse_utc
 import requests
+
+
+# /api/feedback/course1/challenge/Lawrence
 
 class ExchangeFetchFeedback(Exchange, ABCExchangeFetchFeedback):
 
@@ -39,7 +43,6 @@ class ExchangeFetchFeedback(Exchange, ABCExchangeFetchFeedback):
             (_, assignment_id, timestamp) = submission.split('/')[-1].split('+')
             self.timestamps.append(timestamp)
 
-        self.log.info(self.timestamps)
 
     def init_dest(self):
         if self.path_includes_course:
@@ -48,12 +51,16 @@ class ExchangeFetchFeedback(Exchange, ABCExchangeFetchFeedback):
             root = self.coursedir.assignment_id
         self.dest_path = os.path.abspath(os.path.join(self.assignment_dir, root, 'feedback'))
 
+        # check if feedback folder exists
+        if not os.path.exists(self.dest_path):
+            os.mkdir(self.dest_path)
+
+
     def copy_files(self):
         self.log.info('Fetching feedback from server')
         if len(self.timestamps) == 0:
             self.log.info('No feedback available to fetch for your submissions')
 
-        self.log.info(self.timestamps)
         for timestamp in self.timestamps:
             timestamp = parse_utc(timestamp)
             params = {'timestamp': timestamp, 'list_only': 'false', 'user': self.username}
@@ -69,9 +76,9 @@ class ExchangeFetchFeedback(Exchange, ABCExchangeFetchFeedback):
                 self.log.warn('An error occurred while trying to fetch feedback for {}'.format(self.coursedir.assignment_id))
                 self.log.warn('Reason: {}'.format(response.json()['message']))
             elif response.json()['success']:
-                self.log.info(self.dest_path)
                 try:
-                    self.decode_dir(response.json()['files'], self.dest_path)
-                    self.log.info('Successfully decoded feedback for {} saved to {}'.format(self.coursedir.assignment_id, self.dest_path))
+                    dest_with_timestamp = os.path.join(self.dest_path, str(timestamp))
+                    self.decode_dir(response.json()['files'], dest_with_timestamp)
+                    self.log.info('Successfully decoded feedback for {} saved to {}'.format(self.coursedir.assignment_id, dest_with_timestamp))
                 except:
-                    self.log.warn('Could not decode the feedback')
+                    self.log.warn('Could not decode feedback for timestamp {}'.format(str(timestamp)))
