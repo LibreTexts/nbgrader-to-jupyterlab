@@ -1,5 +1,4 @@
 #!/usr/bin/python
-# -*- coding: utf-8 -*-
 import os
 import datetime
 import sys
@@ -17,11 +16,10 @@ from nbgrader.utils import check_directory, ignore_patterns, self_owned
 import base64
 import json
 
-
 class Exchange(ABCExchange):
 
     ngshare_url = 'http://172.17.0.3:11111'  # need to get IP address of container
-    username = os.environ['USER'] #FIXME
+    username = os.environ['USER'] 
 
     assignment_dir = Unicode('.',
                              help=dedent("""
@@ -58,12 +56,6 @@ class Exchange(ABCExchange):
 
         for dirname in all_dirs[::-1]:
             os.chmod(dirname, dirperms)
-
-    def ensure_root(self):
-        """See if the exchange directory exists and is writable, fail if not."""
-
-        if not check_directory(self.root, write=True, execute=True):
-            self.fail('Unwritable directory, please contact your instructor: {}'.format(self.root))
 
     def decode_dir(self, src_dir, dest_dir, ignore=None):
         '''
@@ -145,17 +137,6 @@ class Exchange(ABCExchange):
         raise NotImplementedError
 
     def start(self):
-        if sys.platform == 'win32':
-            self.fail('Sorry, the exchange is not available on Windows.'
-                      )
-        if not self.coursedir.groupshared:
-
-            # This just makes sure that directory is o+rwx.  In group shared
-            # case, it is up to admins to ensure that instructors can write
-            # there.
-
-            self.ensure_root()
-
         super(Exchange, self).start()
 
     def _assignment_not_found(self, src_path, other_path):
