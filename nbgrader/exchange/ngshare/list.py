@@ -32,13 +32,13 @@ def _merge_notebooks_feedback(notebook_ids, checksums):
     return merged
 
 
-def _parse_notebook_id(path):
+def _parse_notebook_id(path, extension='.ipynb'):
     """
-    Returns the notebook_id from the path. If the path is not an ipynb file,
-    returns None.
+    Returns the notebook_id from the path. If the path is not a file with the
+    extension, returns None.
     """
     split_name = os.path.splitext(os.path.split(path)[1])
-    if split_name[1] == '.ipynb':
+    if split_name[1] == extension:
         return split_name[0]
     return None
 
@@ -122,7 +122,7 @@ class ExchangeList(Exchange, ABCExchangeList):
         url = self.ngshare_url + '/api/feedback/{}/{}/{}'.format(course_id,
                                                                  assignment_id,
                                                                  student_id)
-        params = {'list_only': True, 'timestamp': timestamp,
+        params = {'list_only': 'true', 'timestamp': timestamp,
                   'user': self.username}
 
         response = requests.get(url, params=params)
@@ -130,7 +130,7 @@ class ExchangeList(Exchange, ABCExchangeList):
 
         checksums = {}
         for file_entry in response.json()['files']:
-            notebook_id = _parse_notebook_id(file_entry['path'])
+            notebook_id = _parse_notebook_id(file_entry['path'], '.html')
             if notebook_id is not None:
                 checksums[notebook_id] = file_entry['checksum']
 
@@ -142,7 +142,7 @@ class ExchangeList(Exchange, ABCExchangeList):
         """
         url = self.ngshare_url + '/api/assignment/{}/{}'.format(course_id,
                                                                 assignment_id)
-        params = {'list_only': True, 'user': self.username}
+        params = {'list_only': 'true', 'user': self.username}
 
         # TODO: Timeout.
         try:
@@ -236,7 +236,7 @@ class ExchangeList(Exchange, ABCExchangeList):
 
         notebooks = []
         for file_entry in response.json()['files']:
-            notebook_id = _parse_notebook_id(file_entry['path'])
+            notebook_id = _parse_notebook_id(file_entry['path'], '.ipynb')
             if notebook_id is not None:
                 notebooks.append(notebook_id)
 
@@ -356,12 +356,14 @@ class ExchangeList(Exchange, ABCExchangeList):
                                                        info['course_id']))
 
             if self.cached:
+                # Find matching submission in server.
                 submissions = [x['notebooks'] for x in self.submissions if
                                x['timestamp'] == info['timestamp']
                                and x['student_id'] == info['student_id']
                                and x['assignment_id'] == info['assignment_id']
                                and x['course_id'] == info['course_id']
                                ]
+                submission = [] if len(submissions) == 0 else submissions[0]
 
             info['notebooks'] = []
             for notebook in notebooks:
@@ -401,9 +403,10 @@ class ExchangeList(Exchange, ABCExchangeList):
                 if self.cached:
                     has_exchange_feedback = False
                     exchange_feedback_checksum = None
-                    for submission_notebook in submissions:
-                        if submission_notebook['notebook_id'] == info[
-                                'notebook_id']:
+                    for submission_notebook in submission:
+                        if submission_notebook['notebook_id'] == nb_info[
+                                'notebook_id'] and submission_notebook[
+                                'feedback_checksum'] is not None:
                             has_exchange_feedback = True
                             exchange_feedback_checksum = submission_notebook[
                                 'feedback_checksum']
