@@ -64,29 +64,21 @@ class ExchangeList(Exchange, ABCExchangeList):
         ``course_ids`` - A list of course IDs.
         """
         assignments = []
-        server_error = False
         for course_id in course_ids:
             url = self.ngshare_url + '/api/assignments/{}'.format(course_id)
             params = {'user': self.username}
-            # TODO: Timeout.
+
             try:
                 response = requests.get(url, params=params)
-            except:
+                self.check_response(response)
+            except Exception as e:
+                self.log.error('Failed to get assignments from course {}. '
+                               'Reason: {}'.format(course_id, e))
                 server_error = True
-                continue
-
-            if response.status_code != requests.codes.ok:
-                server_error = True
-                continue
-            if not response.json()['success']:
                 continue
 
             assignments += [{'course_id': course_id, 'assignment_id': x}
                             for x in response.json()['assignments']]
-
-        if server_error:
-            self.log.warn('An error occurred querying the server for '
-                          'assignments.')
 
         return assignments
 
@@ -97,18 +89,8 @@ class ExchangeList(Exchange, ABCExchangeList):
         url = self.ngshare_url + '/api/courses'
         params = {'user': self.username}
 
-        # TODO: Timeout.
-        try:
-            response = requests.get(url, params=params)
-        except:
-            self.log.warn('An error occurred querying the server for courses.')
-            return []
-
-        if response.status_code != requests.codes.ok:
-            self.log.warn('An error occurred querying the server for courses.')
-            return []
-        if not response.json()['success']:
-            return []
+        response = requests.get(url, params=params)
+        self.check_response(response)
 
         return response.json()['courses']
 
@@ -144,19 +126,8 @@ class ExchangeList(Exchange, ABCExchangeList):
                                                                 assignment_id)
         params = {'list_only': 'true', 'user': self.username}
 
-        # TODO: Timeout.
-        try:
-            response = requests.get(url, params)
-        except:
-            self.log.warn('An error occurred querying the server for notebooks'
-                          '.')
-            return []
-
-        if response.status_code != requests.codes.ok:
-            self.log.warn('An error occurred querying the server for courses.')
-            return []
-        if not response.json()['success']:
-            return []
+        response = requests.get(url, params)
+        self.check_response(response)
 
         return [os.path.splitext(os.path.split(x['path'])[1])[0] for x in
                 response.json()['files']]
@@ -174,7 +145,6 @@ class ExchangeList(Exchange, ABCExchangeList):
         get. If None, submissions from all students are fetched if permitted.
         """
         submissions = []
-        server_error = False
         for assignment in assignments:
             course_id = assignment['course_id']
             assignment_id = assignment['assignment_id']
@@ -187,25 +157,32 @@ class ExchangeList(Exchange, ABCExchangeList):
 
             try:
                 response = requests.get(url, params=params)
-            except:
-                server_error = True
+                self.check_response(response)
+            except Exception as e:
+                self.log.error('Failed to get submisions for assignment {}. '
+                               'Reason: {}'.format(assignment_id, e))
                 continue
 
-            if response.status_code != requests.codes.ok:
-                server_error = True
-                continue
-
-            response_json = response.json()
-            if not response_json['success']:
-                continue
-
-            for submission in response_json['submissions']:
-                notebook_ids = self._get_submission_notebooks(
-                    course_id, assignment_id, submission['student_id'],
-                    submission['timestamp'])
-                feedback_checksums = self._get_feedback_checksums(
-                    course_id, assignment_id, submission['student_id'],
-                    submission['timestamp'])
+            for submission in response.json()['submissions']:
+                try:
+                    notebook_ids = self._get_submission_notebooks(
+                        course_id, assignment_id, submission['student_id'],
+                        submission['timestamp'])
+                except Exception as e:
+                    self.log.error('Failed to list notebooks in submission '
+                                   '{}/{} from student {} (timestamp {})'
+                                   .format(course_id, assignment_id,
+                                           submission['student_id'],
+                                           submission['timestamp']))
+                    continue
+                try:
+                    feedback_checksums = self._get_feedback_checksums(
+                        course_id, assignment_id, submission['student_id'],
+                        submission['timestamp'])
+                except Exception as e:
+                    self.log.error('Failed to check for feedback. Reason: {}'
+                                   .format(e))
+                    feedback_checksums = []
                 notebooks = _merge_notebooks_feedback(notebook_ids,
                                                       feedback_checksums)
                 submissions.append({
@@ -214,10 +191,6 @@ class ExchangeList(Exchange, ABCExchangeList):
                         'student_id': submission['student_id'],
                         'timestamp': submission['timestamp'],
                         'notebooks': notebooks})
-
-        if server_error:
-            self.log.warn('An error occurred querying the server for '
-                          'submissions.')
 
         return submissions
 
@@ -251,7 +224,10 @@ class ExchangeList(Exchange, ABCExchangeList):
         student_id = self.coursedir.student_id if self.coursedir.student_id else '*'
 
         if course_id == '*':
-            courses = self._get_courses()
+            try:
+                courses = self._get_courses()
+            except Exception as e:
+                self.fail('Failed to get courses. Reason: {}'.format(e))
         else:
             courses = [course_id]
         if assignment_id == '*':
@@ -347,8 +323,13 @@ class ExchangeList(Exchange, ABCExchangeList):
                     return nb['notebook_id']
                 notebooks = sorted(assignment['notebooks'], key=nb_key)
             else:
-                notebooks = sorted(self._get_notebooks(info['course_id'],
-                                                       info['assignment_id']))
+                try:
+                    notebooks = sorted(self._get_notebooks(
+                        info['course_id'], info['assignment_id']))
+                except Exception as e:
+                    self.log.error('Failed to get list of assignment '
+                                   'notebooks. Reason: {}'.format(e))
+                    notebooks = []
 
             if not notebooks:
                 self.log.warning('No notebooks found for assignment "{}" in '
