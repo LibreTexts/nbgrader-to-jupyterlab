@@ -215,6 +215,16 @@ class ExchangeList(Exchange, ABCExchangeList):
 
         return notebooks
 
+    def _unrelease_assignment(self, course_id, assignment_id):
+        """
+        Unrelease a released assignment.
+        """
+        url = self.ngshare_url + '/api/assignment/{}/{}'.format(course_id,
+                                                                assignment_id)
+
+        response = requests.delete(url)
+        self.check_response(response)
+
     def init_src(self):
         pass
 
@@ -487,7 +497,18 @@ class ExchangeList(Exchange, ABCExchangeList):
         if self.cached:
             for assignment in self.assignments:
                 shutil.rmtree(assignment)
-        # TODO: Remove inbound and outbound assignments.
+        elif self.inbound:
+            self.log.warning('ngshare does not support removing submissions.') # TODO
+        else:
+            for assignment in self.assignments:
+                try:
+                    self._unrelease_assignment(assignment['course_id'],
+                                               assignment['assignment_id'])
+                except Exception as e:
+                    self.log.error('Failed to remove assignment {}/{}. '
+                                   'Reason: {}'.format(
+                                       assignment['course_id'],
+                                       assignment['assignment_id'], e))
 
         return assignments
 
