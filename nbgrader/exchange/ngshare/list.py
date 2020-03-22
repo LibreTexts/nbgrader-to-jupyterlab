@@ -74,7 +74,6 @@ class ExchangeList(Exchange, ABCExchangeList):
             except Exception as e:
                 self.log.error('Failed to get assignments from course {}. '
                                'Reason: {}'.format(course_id, e))
-                server_error = True
                 continue
 
             assignments += [{'course_id': course_id, 'assignment_id': x}
@@ -170,10 +169,11 @@ class ExchangeList(Exchange, ABCExchangeList):
                         submission['timestamp'])
                 except Exception as e:
                     self.log.error('Failed to list notebooks in submission '
-                                   '{}/{} from student {} (timestamp {})'
+                                   '{}/{} from student {} (timestamp {}) '
+                                   'Reason: {}'
                                    .format(course_id, assignment_id,
                                            submission['student_id'],
-                                           submission['timestamp']))
+                                           submission['timestamp'], e))
                     continue
                 try:
                     feedback_checksums = self._get_feedback_checksums(
