@@ -19,6 +19,8 @@ import json
 
 class Exchange(ABCExchange):
 
+    username = os.environ['JUPYTERHUB_USER']
+
     @property
     def ngshare_url(self):
         if 'PROXY_PUBLIC_SERVICE_HOST' in os.environ:
