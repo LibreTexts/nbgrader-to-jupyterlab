@@ -95,8 +95,9 @@ class ExchangeReleaseFeedback(Exchange, ABCExchangeReleaseFeedback):
         represented as a dictionary with a "path" to the local feedback file and
         "notebook_id" of the corresponding notebook.
         """
-        url = self.ngshare_url + '/api/feedback/{}/{}/{}'.format(
-            self.coursedir.course_id, self.coursedir.assignment_id, student_id)
+        url = '{}{}/feedback/{}/{}/{}'.format(
+            self.ngshare_url, self.prefix, self.coursedir.course_id,
+            self.coursedir.assignment_id, student_id)
         files = json.dumps([self.encode_file(x['path'],
                                              '{}.html'.format(x['notebook_id'])
                                              ) for x in feedback_info])

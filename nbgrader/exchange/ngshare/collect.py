@@ -34,8 +34,9 @@ class ExchangeCollect(Exchange, ABCExchangeCollect):
         dictionary containing the "path" relative to the assignment root and the
         "content" as an ASCII representation of the base64 encoded bytes.
         """
-        url = self.ngshare_url + '/api/submission/{}/{}/{}'.format(
-            course_id, assignment_id, student_id)
+        url = '{}{}/submission/{}/{}/{}'.format(self.ngshare_url, self.prefix,
+                                                course_id, assignment_id,
+                                                student_id)
         params = {'user': self.username}
 
         try:
@@ -59,8 +60,8 @@ class ExchangeCollect(Exchange, ABCExchangeCollect):
         Returns a list of submission entries. Each entry is a dictionary
         containing the "student_id" and "timestamp".
         """
-        url = self.ngshare_url + '/api/submissions/{}/{}'.format(
-            course_id, assignment_id)
+        url = '{}{}/submissions/{}/{}'.format(self.ngshare_url, self.prefix,
+                                              course_id, assignment_id)
         params = {'user': self.username}
 
         response = requests.get(url, params=params)

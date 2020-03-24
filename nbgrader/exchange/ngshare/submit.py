@@ -15,8 +15,8 @@ class ExchangeSubmit(Exchange, ABCExchangeSubmit):
         """
         Returns a list of relative paths for all files in the assignment.
         """
-        url = self.ngshare_url + '/api/assignment/{}/{}'.format(course_id,
-                                                                assignment_id)
+        url = '{}{}/assignment/{}/{}'.format(self.ngshare_url, self.prefix,
+                                             course_id, assignment_id)
         params = {'user': self.username, 'list_only': 'true'}
 
         response = requests.get(url, params=params)
@@ -118,8 +118,9 @@ class ExchangeSubmit(Exchange, ABCExchangeSubmit):
 
     def post_submission(self, src_path):
         encoded_dir = self.encode_dir(src_path)
-        url = self.ngshare_url + '/api/submission/{}/{}'.format(
-            self.coursedir.course_id, self.coursedir.assignment_id)
+        url = '{}{}/submission/{}/{}'.format(self.ngshare_url, self.prefix,
+                                             self.coursedir.course_id,
+                                             self.coursedir.assignment_id)
 
         response = requests.post(url, data=encoded_dir)
         self.check_response(response)

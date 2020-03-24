@@ -65,7 +65,8 @@ class ExchangeList(Exchange, ABCExchangeList):
         """
         assignments = []
         for course_id in course_ids:
-            url = self.ngshare_url + '/api/assignments/{}'.format(course_id)
+            url = '{}{}/assignments/{}'.format(self.ngshare_url, self.prefix,
+                                               course_id)
             params = {'user': self.username}
 
             try:
@@ -85,7 +86,7 @@ class ExchangeList(Exchange, ABCExchangeList):
         """
         Returns a list of course_ids.
         """
-        url = self.ngshare_url + '/api/courses'
+        url = '{}{}/courses'.format(self.ngshare_url, self.prefix)
         params = {'user': self.username}
 
         response = requests.get(url, params=params)
@@ -100,9 +101,9 @@ class ExchangeList(Exchange, ABCExchangeList):
         This is a dictionary mapping all notebook_ids to the feedback file's
         checksum.
         """
-        url = self.ngshare_url + '/api/feedback/{}/{}/{}'.format(course_id,
-                                                                 assignment_id,
-                                                                 student_id)
+        url = '{}{}/feedback/{}/{}/{}'.format(self.ngshare_url, self.prefix,
+                                              course_id, assignment_id,
+                                              student_id)
         params = {'list_only': 'true', 'timestamp': timestamp,
                   'user': self.username}
 
@@ -121,8 +122,8 @@ class ExchangeList(Exchange, ABCExchangeList):
         """
         Returns a list of notebook_ids from the assignment.
         """
-        url = self.ngshare_url + '/api/assignment/{}/{}'.format(course_id,
-                                                                assignment_id)
+        url = '{}{}/assignment/{}/{}'.format(self.ngshare_url, self.prefix,
+                                             course_id, assignment_id)
         params = {'list_only': 'true', 'user': self.username}
 
         response = requests.get(url, params)
@@ -147,8 +148,8 @@ class ExchangeList(Exchange, ABCExchangeList):
         for assignment in assignments:
             course_id = assignment['course_id']
             assignment_id = assignment['assignment_id']
-            url = self.ngshare_url + '/api/submissions/{}/{}'.format(
-                    course_id, assignment_id)
+            url = '{}{}/submissions/{}/{}'.format(self.ngshare_url, self.prefix,
+                                                  course_id, assignment_id)
             params = {'user': self.username}
 
             if student_id is not None:
@@ -199,8 +200,9 @@ class ExchangeList(Exchange, ABCExchangeList):
         """
         Returns a list of notebook_ids from a submission.
         """
-        url = self.ngshare_url + '/api/submission/{}/{}/{}'.format(
-                course_id, assignment_id, student_id)
+        url = '{}{}/submission/{}/{}/{}'.format(self.ngshare_url, self.prefix,
+                                                course_id, assignment_id,
+                                                student_id)
         params = {'user': self.username, 'list_only': 'true',
                   'timestamp': timestamp}
 
@@ -219,8 +221,8 @@ class ExchangeList(Exchange, ABCExchangeList):
         """
         Unrelease a released assignment.
         """
-        url = self.ngshare_url + '/api/assignment/{}/{}'.format(course_id,
-                                                                assignment_id)
+        url = '{}{}/assignment/{}/{}'.format(self.ngshare_url, self.prefix,
+                                             course_id, assignment_id)
 
         response = requests.delete(url)
         self.check_response(response)
