@@ -26,7 +26,7 @@ class Exchange(ABCExchange):
         if 'PROXY_PUBLIC_SERVICE_HOST' in os.environ:
             # we are in a kubernetes environment, so dns based service discovery should work
             # assuming the service is called ngshare, which it should
-            return "http://proxy-public/services/ngshare" + self.prefix
+            return "http://proxy-public/services/ngshare"
         else:
             # TODO: maybe expose this in the nbgrader configs?
             # for now, keeping the original url to not break docker testing setup
