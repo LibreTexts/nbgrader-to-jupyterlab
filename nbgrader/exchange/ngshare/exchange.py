@@ -77,10 +77,6 @@ class Exchange(ABCExchange):
             dir_name = path_components[0]
             file_name = path_components[1]
 
-            if ignore:
-                if ignore(dir_name, file_name, file_size):
-                    continue
-
             dest_path = os.path.join(dest_dir, file_name)
             # the file could be in a subdirectory, check if directory exists
             if not os.path.exists(dir_name) and dir_name != '':
@@ -92,6 +88,10 @@ class Exchange(ABCExchange):
             self.log.info('Decoding: {}'.format(dest_path))
             decoded_content = base64.b64decode(src_file['content'])
             file_size = len(decoded_content)
+
+            if ignore:
+                if ignore(dir_name, file_name, file_size):
+                    continue
      
             with open(dest_path, 'wb') as d:
                 d.write(decoded_content)
