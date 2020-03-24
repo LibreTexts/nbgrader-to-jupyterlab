@@ -31,7 +31,7 @@ class ExchangeFetchAssignment(Exchange, ABCExchangeFetchAssignment):
         if not self.authenticator.has_access(self.coursedir.student_id, self.coursedir.course_id):
             self.fail('You do not have access to this course.')
 
-        self.src_path = self.ngshare_url + self.prefix + '/assignment/{}/{}'.format(self.coursedir.course_id, self.coursedir.assignment_id)
+        self.src_path = '{}{}/assignment/{}/{}'.format(self.ngshare_url, self.prefix, self.coursedir.course_id, self.coursedir.assignment_id)
 
     def init_dest(self):
         if self.path_includes_course:
