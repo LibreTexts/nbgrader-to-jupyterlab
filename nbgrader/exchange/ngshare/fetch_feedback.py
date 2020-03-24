@@ -31,7 +31,7 @@ class ExchangeFetchFeedback(Exchange, ABCExchangeFetchFeedback):
         pattern = os.path.join(self.cache_path, '*+{}+*'.format(assignment_id))
         self.log.debug('Looking for submissions with pattern: {}'.format(pattern))
 
-        self.src_path = self.ngshare_url + '/api/feedback/{}/{}/{}'.format(self.coursedir.course_id, assignment_id, self.username)
+        self.src_path = self.ngshare_url + self.prefix + '/feedback/{}/{}/{}'.format(self.coursedir.course_id, assignment_id, self.username)
 
         self.timestamps = []
         submissions = [os.path.split(x)[-1] for x in glob.glob(pattern)]

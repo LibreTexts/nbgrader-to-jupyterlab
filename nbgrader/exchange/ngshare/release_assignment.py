@@ -48,7 +48,7 @@ class ExchangeReleaseAssignment(Exchange, ABCExchangeReleaseAssignment):
                 self._assignment_not_found(self.src_path, self.coursedir.format_path(self.coursedir.release_directory, '.', '*'))
 
     def init_dest(self):
-        self.dest_path = self.ngshare_url + '/api/assignment/{}/{}'.format(self.coursedir.course_id, self.coursedir.assignment_id)
+        self.dest_path = self.ngshare_url + self.prefix + '/assignment/{}/{}'.format(self.coursedir.course_id, self.coursedir.assignment_id)
 
     def copy_files(self):
 
