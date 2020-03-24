@@ -30,14 +30,15 @@ class Exchange(ABCExchange):
         else:
             # TODO: maybe expose this in the nbgrader configs?
             # for now, keeping the original url to not break docker testing setup
-            return 'http://172.17.0.3:11111' + self.prefix  # need to get IP address of container
-
-    prefix = '/api'
+            return 'http://172.17.0.3:11111/api'  # need to get IP address of container
 
     def _ngshare_api_check_error(self, response, url):
         if response.status_code != requests.codes.ok:
             self.log.error("ngshare service returned invalid status code %d, this should never happen.",response.status_code)
-        response = response.json()
+        try:
+            response = response.json()
+        except:
+            self.log.exception("ngshare service returned non-JSON content: '%s'. This should never happen.",response.text)
         if not response['success']:
             if 'message' not in response:
                 self.log.error("ngshare endpoint %s returned failure without an error message.", url)
