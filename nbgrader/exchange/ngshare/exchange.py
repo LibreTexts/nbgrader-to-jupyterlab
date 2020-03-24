@@ -20,6 +20,7 @@ class Exchange(ABCExchange):
 
     ngshare_url = 'http://172.17.0.3:11111'  # need to get IP address of container
     username = os.environ['USER'] 
+    prefix = '/api'
 
     assignment_dir = Unicode('.',
                              help=dedent("""
