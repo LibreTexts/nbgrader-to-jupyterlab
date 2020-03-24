@@ -4,8 +4,6 @@ import sys
 from collections import defaultdict
 import base64
 
-import requests
-
 from nbgrader.exchange.abc import ExchangeCollect as ABCExchangeCollect
 from .exchange import Exchange
 
@@ -34,23 +32,15 @@ class ExchangeCollect(Exchange, ABCExchangeCollect):
         dictionary containing the "path" relative to the assignment root and the
         "content" as an ASCII representation of the base64 encoded bytes.
         """
-        url = '{}{}/submission/{}/{}/{}'.format(self.ngshare_url, self.prefix,
-                                                course_id, assignment_id,
-                                                student_id)
-        params = {'user': self.username}
 
-        try:
-            response = requests.get(url, params=params)
-        except:
+        response = self.ngshare_api_get("/submission/{}/{}/{}".format(
+                    course_id, assignment_id, student_id))
+        if response is None:
             self.log.error('An error occurred downloading a submission.')
             return None
 
-        if response.status_code != requests.codes.ok or not response.json()['success']:
-            self.log.error('An error occurred downloading a submission.')
-            return None
-
-        timestamp = response.json()['timestamp']
-        files = response.json()['files']
+        timestamp = response['timestamp']
+        files = response['files']
         files.append({'path': 'timestamp.txt', 'content':
                       base64.encodebytes(timestamp.encode()).decode()})
         return {'timestamp': timestamp, 'files': files}
@@ -60,19 +50,13 @@ class ExchangeCollect(Exchange, ABCExchangeCollect):
         Returns a list of submission entries. Each entry is a dictionary
         containing the "student_id" and "timestamp".
         """
-        url = '{}{}/submissions/{}/{}'.format(self.ngshare_url, self.prefix,
-                                              course_id, assignment_id)
-        params = {'user': self.username}
-
-        response = requests.get(url, params=params)
-        # TODO: self.check_response(response)
-
-        if response.status_code != requests.codes.ok or not response.json()['success']:
-            return []
+        response = self.ngshare_api_get('/submissions/{}/{}'.format(course_id, assignment_id))
+        if response is None:
+            return None
 
         return [{'student_id': x['student_id'],
                  'timestamp': parse_utc(x['timestamp'])}
-                for x in response.json()['submissions']]
+                for x in response['submissions']]
 
     def _sort_by_timestamp(self, records):
         return sorted(records, key=lambda item: item['timestamp'], reverse=True)

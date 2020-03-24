@@ -4,6 +4,7 @@ import datetime
 import sys
 import shutil
 import glob
+import requests
 
 from textwrap import dedent
 
@@ -18,9 +19,57 @@ import json
 
 class Exchange(ABCExchange):
 
-    ngshare_url = 'http://172.17.0.3:11111'  # need to get IP address of container
-    username = os.environ['USER'] 
+    @property
+    def ngshare_url(self):
+        if 'PROXY_PUBLIC_SERVICE_HOST' in os.environ:
+            # we are in a kubernetes environment, so dns based service discovery should work
+            # assuming the service is called ngshare, which it should
+            return "http://proxy-public/services/ngshare"
+        else:
+            # TODO: maybe expose this in the nbgrader configs?
+            # for now, keeping the original url to not break docker testing setup
+            return 'http://172.17.0.3:11111'  # need to get IP address of container
+
     prefix = '/api'
+
+    def _ngshare_api_check_error(self, response, url):
+        if response.status_code != requests.codes.ok:
+            self.log.error("ngshare service returned invalid status code %d, this should never happen.",response.status_code)
+        response = response.json()
+        if not response['success']:
+            if 'message' not in response:
+                self.log.error("ngshare endpoint %s returned failure without an error message.", url)
+            else:
+                self.log.error("ngshare endpoint %s returned failure: %s", url, response['message'])
+            return None
+        return response
+
+    def ngshare_api_get(self, url, params=None):
+        try:
+            response = requests.get(self.ngshare_url + url, params=params,
+                headers={'Authorization': 'token ' + os.environ['JUPYTERHUB_API_TOKEN']})
+        except Exception as e:
+            self.log.exception("An error occured when querying the ngshare endpoint %s", url)
+            return None
+        return self._ngshare_api_check_error(response, url)
+
+    def ngshare_api_post(self, url, data, params=None):
+        try:
+            response = requests.post(self.ngshare_url + url, data=data, params=params,
+                headers={'Authorization': 'token ' + os.environ['JUPYTERHUB_API_TOKEN']})
+        except Exception as e:
+            self.log.exception("An error occured when sending a POST request to the ngshare endpoint %s", url)
+            return None
+        return self._ngshare_api_check_error(response, url)
+
+    def ngshare_api_delete(self, url, params=None):
+        try:
+            response = requests.delete(self.ngshare_url + url, params=params,
+                headers={'Authorization': 'token ' + os.environ['JUPYTERHUB_API_TOKEN']})
+        except Exception as e:
+            self.log.exception("An error occured when sending a DELETE request to the ngshare endpoint %s", url)
+            return None
+        return self._ngshare_api_check_error(response, url)
 
     assignment_dir = Unicode('.',
                              help=dedent("""

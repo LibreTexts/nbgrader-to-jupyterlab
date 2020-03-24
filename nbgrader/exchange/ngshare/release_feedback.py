@@ -4,23 +4,11 @@ import re
 import base64
 import json
 
-import requests
-
 from nbgrader.exchange.abc import ExchangeReleaseFeedback as ABCExchangeReleaseFeedback
 from .exchange import Exchange
 
 
 class ExchangeReleaseFeedback(Exchange, ABCExchangeReleaseFeedback):
-
-    # TODO: Change to a general solution for all exchange classes.
-    def check_response(self, response):
-        """
-        Raises exceptions if the server response is not good.
-        """
-        if response.status_code != requests.codes.ok:
-            raise RuntimeError('HTTP status code {}'.format(response.status_code))
-        elif not response.json()['success']:
-            raise RuntimeError(response.json()['message'])
 
     def init_src(self):
         student_id = self.coursedir.student_id if self.coursedir.student_id else '*'
@@ -95,16 +83,13 @@ class ExchangeReleaseFeedback(Exchange, ABCExchangeReleaseFeedback):
         represented as a dictionary with a "path" to the local feedback file and
         "notebook_id" of the corresponding notebook.
         """
-        url = '{}{}/feedback/{}/{}/{}'.format(
-            self.ngshare_url, self.prefix, self.coursedir.course_id,
-            self.coursedir.assignment_id, student_id)
+        url = '/feedback/{}/{}/{}'.format(self.coursedir.course_id, self.coursedir.assignment_id, student_id)
         files = json.dumps([self.encode_file(x['path'],
                                              '{}.html'.format(x['notebook_id'])
                                              ) for x in feedback_info])
-        data = {'user': self.username, 'timestamp': timestamp, 'files': files}
+        data = {'timestamp': timestamp, 'files': files}
 
-        response = requests.post(url, data=data)
-        self.check_response(response)
+        self.ngshare_api_post(url, data)
 
     # TODO: Consider moving into Exchange.
     def encode_file(self, filesystem_path, assignment_path):

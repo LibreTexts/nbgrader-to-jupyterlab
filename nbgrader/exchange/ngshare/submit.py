@@ -2,8 +2,6 @@ import base64
 import os
 import json
 
-import requests
-
 from nbgrader.exchange.abc import ExchangeSubmit as ABCExchangeSubmit
 from .exchange import Exchange
 from nbgrader.utils import find_all_notebooks, parse_utc
@@ -15,26 +13,15 @@ class ExchangeSubmit(Exchange, ABCExchangeSubmit):
         """
         Returns a list of relative paths for all files in the assignment.
         """
-        url = '{}{}/assignment/{}/{}'.format(self.ngshare_url, self.prefix,
-                                             course_id, assignment_id)
-        params = {'user': self.username, 'list_only': 'true'}
+        url = '/assignment/{}/{}'.format(course_id, assignment_id)
+        params = {'list_only': 'true'}
 
-        response = requests.get(url, params=params)
+        response = self.ngshare_api_get(url, params)
+        if response is None:
+            return None
 
-        self.check_response(response)
-
-        return [x['path'] for x in response.json()['files'] if
+        return [x['path'] for x in response['files'] if
                 os.path.splitext(x['path'])[1] == '.ipynb']
-
-    # TODO: Change to a general solution for all exchange classes.
-    def check_response(self, response):
-        """
-        Raises exceptions if the server response is not good.
-        """
-        if response.status_code != requests.codes.ok:
-            raise RuntimeError('HTTP status code {}'.format(response.status_code))
-        elif not response.json()['success']:
-            raise RuntimeError(response.json()['message'])
 
     def init_src(self):
         if self.path_includes_course:
@@ -118,14 +105,12 @@ class ExchangeSubmit(Exchange, ABCExchangeSubmit):
 
     def post_submission(self, src_path):
         encoded_dir = self.encode_dir(src_path)
-        url = '{}{}/submission/{}/{}'.format(self.ngshare_url, self.prefix,
-                                             self.coursedir.course_id,
-                                             self.coursedir.assignment_id)
+        url = '/submission/{}/{}'.format(self.coursedir.course_id, self.coursedir.assignment_id)
 
-        response = requests.post(url, data=encoded_dir)
-        self.check_response(response)
-
-        return response.json()['timestamp']
+        response = self.ngshare_api_post(url, encoded_dir)
+        if response is None:
+            return None
+        return response['timestamp']
 
     def copy_files(self):
         self.log.info("Source: {}".format(self.src_path))

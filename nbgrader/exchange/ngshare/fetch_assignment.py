@@ -7,7 +7,6 @@ from traitlets import Bool
 from nbgrader.exchange.abc import ExchangeFetchAssignment as ABCExchangeFetchAssignment
 from nbgrader.exchange.ngshare import Exchange
 from nbgrader.utils import check_mode
-import requests
 
 
 class ExchangeFetchAssignment(Exchange, ABCExchangeFetchAssignment):
@@ -31,7 +30,7 @@ class ExchangeFetchAssignment(Exchange, ABCExchangeFetchAssignment):
         if not self.authenticator.has_access(self.coursedir.student_id, self.coursedir.course_id):
             self.fail('You do not have access to this course.')
 
-        self.src_path = '{}{}/assignment/{}/{}'.format(self.ngshare_url, self.prefix, self.coursedir.course_id, self.coursedir.assignment_id)
+        self.src_path = '/assignment/{}/{}'.format(self.coursedir.course_id, self.coursedir.assignment_id)
 
     def init_dest(self):
         if self.path_includes_course:
@@ -43,21 +42,13 @@ class ExchangeFetchAssignment(Exchange, ABCExchangeFetchAssignment):
             self.fail('You already have a copy of the assignment in this directory: {}'.format(root))
 
     def copy_files(self):
-        try:
-            params = {'user': self.username}
-            response = requests.get(self.src_path, params=params)
-        except:
-            self.log.warn('An error occurred while trying to fetch {}'.format(self.coursedir.assignment_id))
-
-        if response.status_code != requests.codes.ok:
-            self.log.warn('An error occurred while trying to fetch {}'.format(self.coursedir.assignment_id))
-            self.log.warn('Status Code: {}'.format(response.status_code))
-        elif not response.json()['success']:
-            self.log.warn('Failed to fetch assignment. Reason: {}'.format(response.json()['message']))
+        response = self.ngshare_api_get(self.src_path)
+        if response is None:
+            self.log.warn('Failed to fetch assignment.')
         else:
             self.log.info('Successfully fetched {}. Will try to decode'.format(self.coursedir.assignment_id))
             try:
-                self.decode_dir(response.json()['files'], self.dest_path)
+                self.decode_dir(response['files'], self.dest_path)
                 self.log.info('Successfully decoded {}.'.format(self.coursedir.assignment_id))
             except:
                 self.log.warn('Could not decode the assignment')
