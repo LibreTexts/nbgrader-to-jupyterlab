@@ -172,9 +172,7 @@ class ExchangeList(Exchange, ABCExchangeList):
         """
         Returns a list of notebook_ids from a submission.
         """
-        url = '{}{}/submission/{}/{}/{}'.format(self.ngshare_url, self.prefix,
-                                                course_id, assignment_id,
-                                                student_id)
+        url = '/submission/{}/{}/{}'.format(course_id, assignment_id, student_id)
         params = {'list_only': 'true', 'timestamp': timestamp}
 
         response = self.ngshare_api_get(url, params)
