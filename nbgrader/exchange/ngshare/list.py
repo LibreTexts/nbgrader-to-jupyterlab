@@ -55,7 +55,7 @@ class ExchangeList(Exchange, ABCExchangeList):
         for course_id in course_ids:
             response = self.ngshare_api_get('/assignments/{}'.format(course_id))
             if response is None:
-                self.log.error('Failed to get assignments from course {}.')
+                self.log.error('Failed to get assignments from course {}.'.format(course_id))
                 continue
 
             assignments += [{'course_id': course_id, 'assignment_id': x}
