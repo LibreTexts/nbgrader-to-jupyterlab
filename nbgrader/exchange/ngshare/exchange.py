@@ -19,7 +19,7 @@ import json
 
 class Exchange(ABCExchange):
 
-    username = os.environ['JUPYTERHUB_USER']
+    username = os.environ['JUPYTERHUB_USER'] if 'JUPYTERHUB_USER' in os.environ else os.environ['USER']
 
     @property
     def ngshare_url(self):
