@@ -136,25 +136,21 @@ class ExchangeList(Exchange, ABCExchangeList):
                 continue
 
             for submission in response['submissions']:
-                try:
-                    notebook_ids = self._get_submission_notebooks(
-                        course_id, assignment_id, submission['student_id'],
-                        submission['timestamp'])
-                except Exception as e:
+                notebook_ids = self._get_submission_notebooks(
+                    course_id, assignment_id, submission['student_id'],
+                    submission['timestamp'])
+                if notebook_ids is None:
                     self.log.error('Failed to list notebooks in submission '
-                                   '{}/{} from student {} (timestamp {}) '
-                                   'Reason: {}'
+                                   '{}/{} from student {} (timestamp {})'
                                    .format(course_id, assignment_id,
                                            submission['student_id'],
-                                           submission['timestamp'], e))
+                                           submission['timestamp']))
                     continue
-                try:
-                    feedback_checksums = self._get_feedback_checksums(
-                        course_id, assignment_id, submission['student_id'],
-                        submission['timestamp'])
-                except Exception as e:
-                    self.log.error('Failed to check for feedback. Reason: {}'
-                                   .format(e))
+                feedback_checksums = self._get_feedback_checksums(
+                    course_id, assignment_id, submission['student_id'],
+                    submission['timestamp'])
+                if feedback_checksums is None:
+                    self.log.error('Failed to check for feedback.')
                     feedback_checksums = []
                 notebooks = _merge_notebooks_feedback(notebook_ids,
                                                       feedback_checksums)
@@ -193,7 +189,7 @@ class ExchangeList(Exchange, ABCExchangeList):
         """
         url = '/assignment/{}/{}'.format(course_id, assignment_id)
 
-        self.ngshare_api_delete(url)
+        return self.ngshare_api_delete(url)
 
     def init_src(self):
         pass
@@ -204,10 +200,9 @@ class ExchangeList(Exchange, ABCExchangeList):
         student_id = self.coursedir.student_id if self.coursedir.student_id else '*'
 
         if course_id == '*':
-            try:
-                courses = self._get_courses()
-            except Exception as e:
-                self.fail('Failed to get courses. Reason: {}'.format(e))
+            courses = self._get_courses()
+            if courses is None:
+                self.fail('Failed to get courses.')
         else:
             courses = [course_id]
         if assignment_id == '*':
@@ -303,12 +298,11 @@ class ExchangeList(Exchange, ABCExchangeList):
                     return nb['notebook_id']
                 notebooks = sorted(assignment['notebooks'], key=nb_key)
             else:
-                try:
-                    notebooks = sorted(self._get_notebooks(
-                        info['course_id'], info['assignment_id']))
-                except Exception as e:
+                notebooks = sorted(self._get_notebooks(
+                    info['course_id'], info['assignment_id']))
+                if notebooks is None:
                     self.log.error('Failed to get list of assignment '
-                                   'notebooks. Reason: {}'.format(e))
+                                   'notebooks.')
                     notebooks = []
 
             if not notebooks:
@@ -471,14 +465,12 @@ class ExchangeList(Exchange, ABCExchangeList):
             self.log.warning('ngshare does not support removing submissions.') # TODO
         else:
             for assignment in self.assignments:
-                try:
-                    self._unrelease_assignment(assignment['course_id'],
-                                               assignment['assignment_id'])
-                except Exception as e:
-                    self.log.error('Failed to remove assignment {}/{}. '
-                                   'Reason: {}'.format(
+                retvalue = self._unrelease_assignment(
+                    assignment['course_id'], assignment['assignment_id'])
+                if retvalue is None:
+                    self.log.error('Failed to remove assignment {}/{}.'.format(
                                        assignment['course_id'],
-                                       assignment['assignment_id'], e))
+                                       assignment['assignment_id']))
 
         return assignments
 

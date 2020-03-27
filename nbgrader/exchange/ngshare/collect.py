@@ -65,11 +65,10 @@ class ExchangeCollect(Exchange, ABCExchangeCollect):
         if self.coursedir.course_id == '':
             self.fail("No course id specified. Re-run with --course flag.")
 
-        try:
-            records = self._get_submission_list(self.coursedir.course_id,
-                                                self.coursedir.assignment_id)
-        except Exception as e:
-            self.fail('Failed to list submissions. Reason: {}'.format(e))
+        records = self._get_submission_list(self.coursedir.course_id,
+                                            self.coursedir.assignment_id)
+        if records is None:
+            self.fail('Failed to list submissions.')
         usergroups = groupby(records, lambda item: item['student_id'])
         self.src_records = [self._sort_by_timestamp(v)[0] for v in usergroups.values()]
 

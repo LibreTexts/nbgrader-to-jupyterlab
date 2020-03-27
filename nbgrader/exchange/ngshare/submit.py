@@ -54,12 +54,10 @@ class ExchangeSubmit(Exchange, ABCExchangeSubmit):
                 student_id, self.coursedir.assignment_id, self.timestamp)
 
     def check_filename_diff(self):
-        try:
-            released_notebooks = self._get_assignment_notebooks(
-                self.coursedir.course_id, self.coursedir.assignment_id)
-        except Exception as e:
-            self.log.warning('Unable to get list of assignment files. Reason: "{}"'
-                .format(e))
+        released_notebooks = self._get_assignment_notebooks(
+            self.coursedir.course_id, self.coursedir.assignment_id)
+        if released_notebooks is None:
+            self.log.warning('Unable to get list of assignment files.')
             released_notebooks = []
         submitted_notebooks = find_all_notebooks(self.src_path)
 
@@ -117,10 +115,9 @@ class ExchangeSubmit(Exchange, ABCExchangeSubmit):
 
         # copy to the real location
         self.check_filename_diff()
-        try:
-            self.timestamp = self.post_submission(self.src_path)
-        except Exception as e:
-            self.log.error('Failed to submit. Reason: "{}"'.format(e))
+        self.timestamp = self.post_submission(self.src_path)
+        if self.timestamp is None:
+            self.log.error('Failed to submit.')
             return
 
         # also copy to the cache

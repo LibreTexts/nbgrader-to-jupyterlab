@@ -69,12 +69,12 @@ class ExchangeReleaseFeedback(Exchange, ABCExchangeReleaseFeedback):
                                 student_id, self.coursedir.course_id,
                                 self.coursedir.assignment_id, notebook_id,
                                 timestamp))
-                try:
-                    self.post_feedback(student_id, timestamp, feedback_info)
+                retvalue = self.post_feedback(student_id, timestamp,
+                                              feedback_info)
+                if retvalue is None:
+                    self.log.error('Failed to upload feedback to server.')
+                else:
                     self.log.info('Feedback released.')
-                except Exception as e:
-                    self.log.error('Failed to upload feedback to server. '
-                                   'Reason: {}' .format(e))
 
     def post_feedback(self, student_id, timestamp, feedback_info):
         """
@@ -89,7 +89,7 @@ class ExchangeReleaseFeedback(Exchange, ABCExchangeReleaseFeedback):
                                              ) for x in feedback_info])
         data = {'timestamp': timestamp, 'files': files}
 
-        self.ngshare_api_post(url, data)
+        return self.ngshare_api_post(url, data)
 
     # TODO: Consider moving into Exchange.
     def encode_file(self, filesystem_path, assignment_path):
