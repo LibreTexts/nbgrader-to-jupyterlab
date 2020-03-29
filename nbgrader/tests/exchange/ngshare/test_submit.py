@@ -45,18 +45,26 @@ class TestExchangeSubmit(TestExchange):
         shutil.copyfile(self.files_path / 'test.ipynb',
                         assignment_dir / (notebook_id + '.ipynb'))
 
-    def test_no_course_id(self):
-        """Does submitting without a course id thrown an error?"""
-        self.submit.coursedir.course_id = ''
-        with pytest.raises(ExchangeError):
-            self.submit.start()
-
     @pytest.fixture(autouse=True)
     def init_submit(self):
         self._prepare_submission(self.course_dir)
         self.submit = self._new_submit()
         self._populate_ngshare()
         os.chdir(self.course_dir)
+
+    def test_404(self):
+        self.mock_404()
+        self.submit.start()
+
+    def test_unsuccessful(self):
+        self.mock_unsuccessful()
+        self.submit.start()
+
+    def test_no_course_id(self):
+        """Does submitting without a course id thrown an error?"""
+        self.submit.coursedir.course_id = ''
+        with pytest.raises(ExchangeError):
+            self.submit.start()
 
     def test_submit(self):
         now = datetime.datetime.utcnow()

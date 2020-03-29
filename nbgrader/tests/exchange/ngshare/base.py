@@ -80,3 +80,12 @@ class TestExchange():
         self._mock_get_assignment()
         self._mock_post_submission()
         # TODO: Mock other requests.
+
+    def mock_404(self):
+        self.requests_mocker.register_uri(rq_mock.ANY, rq_mock.ANY,
+                                          status_code=404)
+
+    def mock_unsuccessful(self):
+        self.requests_mocker.register_uri(
+            rq_mock.ANY, rq_mock.ANY,
+            json={'success': False, 'message': 'Something happened'})
