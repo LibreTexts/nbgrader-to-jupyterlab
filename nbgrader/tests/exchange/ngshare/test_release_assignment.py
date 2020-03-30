@@ -4,20 +4,14 @@ from logging import getLogger
 from pathlib import Path
 import os
 import shutil
-import urllib
 
 import pytest
 from requests import PreparedRequest
 
-from base import TestExchange
+from base import parse_body, TestExchange
 from nbgrader.exchange.abc.exchange import ExchangeError
 from nbgrader.exchange.ngshare.release_assignment import \
     ExchangeReleaseAssignment
-
-
-def _parse_body(body: str):
-    # https://stackoverflow.com/questions/48018622/how-can-see-the-request-data#51052385
-    return dict(urllib.parse.parse_qsl(body))
 
 
 class TestExchangeReleaseAssignment(TestExchange):
@@ -91,7 +85,7 @@ class TestExchangeReleaseAssignment(TestExchange):
         if self.released:
             return {'success': False, 'message': 'Assignment already exists'}
 
-        request = _parse_body(request.body)
+        request = parse_body(request.body)
         try:
             files = loads(request['files'])
             assert len(files) == 1

@@ -1,6 +1,6 @@
 from logging import getLogger
 from pathlib import Path
-import re
+import urllib
 
 import pytest
 from requests import PreparedRequest
@@ -9,8 +9,11 @@ from requests_mock import Mocker
 
 from nbgrader.coursedir import CourseDirectory
 from nbgrader.exchange.ngshare.exchange import Exchange
-import ngshare_mock
-from ngshare_mock import MockNgshare
+
+
+def parse_body(body: str):
+    # https://stackoverflow.com/questions/48018622/how-can-see-the-request-data#51052385
+    return dict(urllib.parse.parse_qsl(body))
 
 
 class TestExchange():
@@ -18,7 +21,6 @@ class TestExchange():
     assignment_id = 'ps1'
     student_id = 'student_1'
     notebook_id = 'p1'
-    mock_ngshare = MockNgshare()
     test_failed = False
     test_completed = False
 
@@ -33,17 +35,6 @@ class TestExchange():
                           request.url)
         content.status_code = 404
         return ''
-
-    def _mock_get_assignment(self):
-        url = re.compile('^{}{}$'.format(self.base_url,
-                         ngshare_mock.url_suffix_get_assignment))
-        self.requests_mock.get(url, json=self.mock_ngshare.mock_get_assignment)
-
-    def _mock_post_submission(self):
-        url = re.compile('^{}{}$'.format(self.base_url,
-                         ngshare_mock.url_suffix_post_submission))
-        self.requests_mock.post(
-            url, json=self.mock_ngshare.mock_post_submission)
 
     def _new_exchange_object(self, cls, course_id, assignment_id, student_id):
         assert issubclass(cls, Exchange)
@@ -62,24 +53,14 @@ class TestExchange():
 
     @pytest.fixture(autouse=True)
     def init(self, requests_mock: Mocker, tmpdir_factory):
+        host = Exchange.ngshare_url
+        api_prefix = Exchange.prefix
+        self.base_url = host + api_prefix
         self.course_dir = self._init_course_dir(tmpdir_factory)
         self.cache_dir = self._init_cache_dir(tmpdir_factory)
         self.requests_mocker = requests_mock
-
-    @pytest.fixture(autouse=True)
-    def mock_ngshare_requests(self, requests_mock: Mocker):
-        host = Exchange.ngshare_url
-        api_prefix = '/api'
-        self.base_url = host + api_prefix
-        self.requests_mock = requests_mock
-        self.mock_ngshare.base_url = self.base_url
-
         requests_mock.register_uri(rq_mock.ANY, rq_mock.ANY,
                                    text=self._mock_all)
-
-        self._mock_get_assignment()
-        self._mock_post_submission()
-        # TODO: Mock other requests.
 
     def mock_404(self):
         self.requests_mocker.register_uri(rq_mock.ANY, rq_mock.ANY,
