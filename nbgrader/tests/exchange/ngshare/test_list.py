@@ -155,6 +155,10 @@ class TestExchangeList(TestExchange):
                                             self.assignment_id,
                                             self.student_id)
         self.requests_mocker.get(url, json=self._get_feedback)
+        url = '{}/feedback/{}/{}/{}'.format(self.base_url, self.course_id,
+                                            self.assignment_id2,
+                                            self.student_id)
+        self.requests_mocker.get(url, json=self._get_feedback)
 
     def _new_list(self, course_id=TestExchange.course_id,
                   assignment_id=TestExchange.assignment_id,
