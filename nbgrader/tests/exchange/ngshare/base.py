@@ -53,9 +53,7 @@ class TestExchange():
 
     @pytest.fixture(autouse=True)
     def init(self, requests_mock: Mocker, tmpdir_factory):
-        host = Exchange.ngshare_url
-        api_prefix = Exchange.prefix
-        self.base_url = host + api_prefix
+        self.base_url = Exchange.ngshare_url.fget(Exchange)
         self.course_dir = self._init_course_dir(tmpdir_factory)
         self.cache_dir = self._init_cache_dir(tmpdir_factory)
         self.requests_mocker = requests_mock
