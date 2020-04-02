@@ -9,7 +9,6 @@ from nbgrader.exchange.ngshare import Exchange
 from nbgrader.utils import check_mode, notebook_hash, make_unique_key, \
     get_username
 from nbgrader.utils import parse_utc
-import requests
 
 class ExchangeFetchFeedback(Exchange, ABCExchangeFetchFeedback):
 
@@ -31,7 +30,7 @@ class ExchangeFetchFeedback(Exchange, ABCExchangeFetchFeedback):
         pattern = os.path.join(self.cache_path, '*+{}+*'.format(assignment_id))
         self.log.debug('Looking for submissions with pattern: {}'.format(pattern))
 
-        self.src_path = '{}{}/feedback/{}/{}/{}'.format(self.ngshare_url, self.prefix, self.coursedir.course_id, assignment_id, self.username)
+        self.src_path = '/feedback/{}/{}/{}'.format(self.coursedir.course_id, assignment_id, self.username)
 
         self.timestamps = []
         submissions = [os.path.split(x)[-1] for x in glob.glob(pattern)]
@@ -58,22 +57,14 @@ class ExchangeFetchFeedback(Exchange, ABCExchangeFetchFeedback):
             self.log.info('No feedback available to fetch for your submissions')
 
         for timestamp in self.timestamps:
-            params = {'timestamp': timestamp, 'list_only': 'false', 'user': self.username}
-
+            params = {'timestamp': timestamp, 'list_only': 'false'}
+            response = self.ngshare_api_get(self.src_path, params=params)
+            if response is None:
+                self.log.warn('An error occurred while trying to fetch feedback for {}'.format(self.coursedir.assignment_id))
+                return
             try:
-                response = requests.get(self.src_path, params=params)
+                dest_with_timestamp = os.path.join(self.dest_path, str(timestamp))
+                self.decode_dir(response['files'], dest_with_timestamp)
+                self.log.info('Successfully decoded feedback for {} saved to {}'.format(self.coursedir.assignment_id, dest_with_timestamp))
             except:
-                self.log.warn('An error occurred while trying to fetch feedback for {}'.format(self.coursedir.assignment_id))
-
-            if response.status_code != requests.codes.ok:
-                self.log.warn('An error occurred while trying to fetch feedback for {}'.format(self.coursedir.assignment_id))
-            elif not response.json()['success']:
-                self.log.warn('An error occurred while trying to fetch feedback for {}'.format(self.coursedir.assignment_id))
-                self.log.warn('Reason: {}'.format(response.json()['message']))
-            elif response.json()['success']:
-                try:
-                    dest_with_timestamp = os.path.join(self.dest_path, str(timestamp))
-                    self.decode_dir(response.json()['files'], dest_with_timestamp)
-                    self.log.info('Successfully decoded feedback for {} saved to {}'.format(self.coursedir.assignment_id, dest_with_timestamp))
-                except:
-                    self.log.warn('Could not decode feedback for timestamp {}'.format(str(timestamp)))
+                self.log.warn('Could not decode feedback for timestamp {}'.format(str(timestamp)))

@@ -3,7 +3,6 @@ import glob
 import shutil
 import re
 import hashlib
-import requests
 
 from nbgrader.exchange.abc import ExchangeList as ABCExchangeList
 from .exchange import Exchange
@@ -45,17 +44,6 @@ def _parse_notebook_id(path, extension='.ipynb'):
 
 class ExchangeList(Exchange, ABCExchangeList):
 
-    # TODO: Change to a general solution for all exchange classes.
-    def check_response(self, response):
-        """
-        Raises exceptions if the server response is not good.
-        """
-        if response.status_code != requests.codes.ok:
-            raise RuntimeError('HTTP status code {}'
-                               .format(response.status_code))
-        elif not response.json()['success']:
-            raise RuntimeError(response.json()['message'])
-
     def _get_assignments(self, course_ids):
         """
         Returns a list of assignments. Each assignment is a dictionary
@@ -65,20 +53,13 @@ class ExchangeList(Exchange, ABCExchangeList):
         """
         assignments = []
         for course_id in course_ids:
-            url = '{}{}/assignments/{}'.format(self.ngshare_url, self.prefix,
-                                               course_id)
-            params = {'user': self.username}
-
-            try:
-                response = requests.get(url, params=params)
-                self.check_response(response)
-            except Exception as e:
-                self.log.error('Failed to get assignments from course {}. '
-                               'Reason: {}'.format(course_id, e))
+            response = self.ngshare_api_get('/assignments/{}'.format(course_id))
+            if response is None:
+                self.log.error('Failed to get assignments from course {}.'.format(course_id))
                 continue
 
             assignments += [{'course_id': course_id, 'assignment_id': x}
-                            for x in response.json()['assignments']]
+                            for x in response['assignments']]
 
         return assignments
 
@@ -86,13 +67,11 @@ class ExchangeList(Exchange, ABCExchangeList):
         """
         Returns a list of course_ids.
         """
-        url = '{}{}/courses'.format(self.ngshare_url, self.prefix)
-        params = {'user': self.username}
 
-        response = requests.get(url, params=params)
-        self.check_response(response)
-
-        return response.json()['courses']
+        response = self.ngshare_api_get('/courses')
+        if response is None:
+            return None
+        return response['courses']
 
     def _get_feedback_checksums(self, course_id, assignment_id, student_id,
                                 timestamp):
@@ -101,17 +80,15 @@ class ExchangeList(Exchange, ABCExchangeList):
         This is a dictionary mapping all notebook_ids to the feedback file's
         checksum.
         """
-        url = '{}{}/feedback/{}/{}/{}'.format(self.ngshare_url, self.prefix,
-                                              course_id, assignment_id,
-                                              student_id)
-        params = {'list_only': 'true', 'timestamp': timestamp,
-                  'user': self.username}
+        url = '/feedback/{}/{}/{}'.format(course_id, assignment_id, student_id)
+        params = {'list_only': 'true', 'timestamp': timestamp}
 
-        response = requests.get(url, params=params)
-        self.check_response(response)
+        response = self.ngshare_api_get(url, params)
+        if response is None:
+            return None
 
         checksums = {}
-        for file_entry in response.json()['files']:
+        for file_entry in response['files']:
             notebook_id = _parse_notebook_id(file_entry['path'], '.html')
             if notebook_id is not None:
                 checksums[notebook_id] = file_entry['checksum']
@@ -122,15 +99,15 @@ class ExchangeList(Exchange, ABCExchangeList):
         """
         Returns a list of notebook_ids from the assignment.
         """
-        url = '{}{}/assignment/{}/{}'.format(self.ngshare_url, self.prefix,
-                                             course_id, assignment_id)
-        params = {'list_only': 'true', 'user': self.username}
+        url = '/assignment/{}/{}'.format(course_id, assignment_id)
+        params = {'list_only': 'true'}
 
-        response = requests.get(url, params)
-        self.check_response(response)
+        response = self.ngshare_api_get(url, params)
+        if response is None:
+            return None
 
         return [os.path.splitext(os.path.split(x['path'])[1])[0] for x in
-                response.json()['files']]
+                response['files']]
 
     def _get_submissions(self, assignments, student_id=None):
         """
@@ -148,41 +125,32 @@ class ExchangeList(Exchange, ABCExchangeList):
         for assignment in assignments:
             course_id = assignment['course_id']
             assignment_id = assignment['assignment_id']
-            url = '{}{}/submissions/{}/{}'.format(self.ngshare_url, self.prefix,
-                                                  course_id, assignment_id)
-            params = {'user': self.username}
+            url = '/submissions/{}/{}'.format(course_id, assignment_id)
 
             if student_id is not None:
                 url += '/' + student_id
 
-            try:
-                response = requests.get(url, params=params)
-                self.check_response(response)
-            except Exception as e:
-                self.log.error('Failed to get submisions for assignment {}. '
-                               'Reason: {}'.format(assignment_id, e))
+            response = self.ngshare_api_get(url)
+            if response is None:
+                self.log.error('Failed to get submisions for assignment {}.')
                 continue
 
-            for submission in response.json()['submissions']:
-                try:
-                    notebook_ids = self._get_submission_notebooks(
-                        course_id, assignment_id, submission['student_id'],
-                        submission['timestamp'])
-                except Exception as e:
+            for submission in response['submissions']:
+                notebook_ids = self._get_submission_notebooks(
+                    course_id, assignment_id, submission['student_id'],
+                    submission['timestamp'])
+                if notebook_ids is None:
                     self.log.error('Failed to list notebooks in submission '
-                                   '{}/{} from student {} (timestamp {}) '
-                                   'Reason: {}'
+                                   '{}/{} from student {} (timestamp {})'
                                    .format(course_id, assignment_id,
                                            submission['student_id'],
-                                           submission['timestamp'], e))
+                                           submission['timestamp']))
                     continue
-                try:
-                    feedback_checksums = self._get_feedback_checksums(
-                        course_id, assignment_id, submission['student_id'],
-                        submission['timestamp'])
-                except Exception as e:
-                    self.log.error('Failed to check for feedback. Reason: {}'
-                                   .format(e))
+                feedback_checksums = self._get_feedback_checksums(
+                    course_id, assignment_id, submission['student_id'],
+                    submission['timestamp'])
+                if feedback_checksums is None:
+                    self.log.error('Failed to check for feedback.')
                     feedback_checksums = []
                 notebooks = _merge_notebooks_feedback(notebook_ids,
                                                       feedback_checksums)
@@ -200,17 +168,15 @@ class ExchangeList(Exchange, ABCExchangeList):
         """
         Returns a list of notebook_ids from a submission.
         """
-        url = '{}{}/submission/{}/{}/{}'.format(self.ngshare_url, self.prefix,
-                                                course_id, assignment_id,
-                                                student_id)
-        params = {'user': self.username, 'list_only': 'true',
-                  'timestamp': timestamp}
+        url = '/submission/{}/{}/{}'.format(course_id, assignment_id, student_id)
+        params = {'list_only': 'true', 'timestamp': timestamp}
 
-        response = requests.get(url, params=params)
-        self.check_response(response)
+        response = self.ngshare_api_get(url, params)
+        if response is None:
+            return None
 
         notebooks = []
-        for file_entry in response.json()['files']:
+        for file_entry in response['files']:
             notebook_id = _parse_notebook_id(file_entry['path'], '.ipynb')
             if notebook_id is not None:
                 notebooks.append(notebook_id)
@@ -221,11 +187,9 @@ class ExchangeList(Exchange, ABCExchangeList):
         """
         Unrelease a released assignment.
         """
-        url = '{}{}/assignment/{}/{}'.format(self.ngshare_url, self.prefix,
-                                             course_id, assignment_id)
+        url = '/assignment/{}/{}'.format(course_id, assignment_id)
 
-        response = requests.delete(url)
-        self.check_response(response)
+        return self.ngshare_api_delete(url)
 
     def init_src(self):
         pass
@@ -236,10 +200,9 @@ class ExchangeList(Exchange, ABCExchangeList):
         student_id = self.coursedir.student_id if self.coursedir.student_id else '*'
 
         if course_id == '*':
-            try:
-                courses = self._get_courses()
-            except Exception as e:
-                self.fail('Failed to get courses. Reason: {}'.format(e))
+            courses = self._get_courses()
+            if courses is None:
+                self.fail('Failed to get courses.')
         else:
             courses = [course_id]
         if assignment_id == '*':
@@ -335,12 +298,11 @@ class ExchangeList(Exchange, ABCExchangeList):
                     return nb['notebook_id']
                 notebooks = sorted(assignment['notebooks'], key=nb_key)
             else:
-                try:
-                    notebooks = sorted(self._get_notebooks(
-                        info['course_id'], info['assignment_id']))
-                except Exception as e:
+                notebooks = sorted(self._get_notebooks(
+                    info['course_id'], info['assignment_id']))
+                if notebooks is None:
                     self.log.error('Failed to get list of assignment '
-                                   'notebooks. Reason: {}'.format(e))
+                                   'notebooks.')
                     notebooks = []
 
             if not notebooks:
@@ -503,14 +465,12 @@ class ExchangeList(Exchange, ABCExchangeList):
             self.log.warning('ngshare does not support removing submissions.') # TODO
         else:
             for assignment in self.assignments:
-                try:
-                    self._unrelease_assignment(assignment['course_id'],
-                                               assignment['assignment_id'])
-                except Exception as e:
-                    self.log.error('Failed to remove assignment {}/{}. '
-                                   'Reason: {}'.format(
+                retvalue = self._unrelease_assignment(
+                    assignment['course_id'], assignment['assignment_id'])
+                if retvalue is None:
+                    self.log.error('Failed to remove assignment {}/{}.'.format(
                                        assignment['course_id'],
-                                       assignment['assignment_id'], e))
+                                       assignment['assignment_id']))
 
         return assignments
 
