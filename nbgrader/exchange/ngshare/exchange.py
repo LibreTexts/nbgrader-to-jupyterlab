@@ -49,32 +49,29 @@ class Exchange(ABCExchange):
             return None
         return response
 
-    def ngshare_api_get(self, url, params=None):
+    def ngshare_api_request(self, method, url, data=None, params=None):
         try:
-            response = requests.get(self.ngshare_url + url, params=params,
-                headers={'Authorization': 'token ' + os.environ['JUPYTERHUB_API_TOKEN']})
+            headers = None
+            if 'JUPYTERHUB_API_TOKEN' in os.environ:
+                headers = {'Authorization': 'token '
+                           + os.environ['JUPYTERHUB_API_TOKEN']}
+            response = requests.request(method, self.ngshare_url + url,
+                                        headers=headers, data=data,
+                                        params=params)
         except Exception as e:
-            self.log.exception("An error occured when querying the ngshare endpoint %s", url)
+            self.log.exception('An error occurred when querying the ngshare '
+                               'endpoint %s', url)
             return None
         return self._ngshare_api_check_error(response, url)
+
+    def ngshare_api_get(self, url, params=None):
+        return self.ngshare_api_request('GET', url, params=params)
 
     def ngshare_api_post(self, url, data, params=None):
-        try:
-            response = requests.post(self.ngshare_url + url, data=data, params=params,
-                headers={'Authorization': 'token ' + os.environ['JUPYTERHUB_API_TOKEN']})
-        except Exception as e:
-            self.log.exception("An error occured when sending a POST request to the ngshare endpoint %s", url)
-            return None
-        return self._ngshare_api_check_error(response, url)
+        return self.ngshare_api_request('POST', url, data=data, params=params)
 
     def ngshare_api_delete(self, url, params=None):
-        try:
-            response = requests.delete(self.ngshare_url + url, params=params,
-                headers={'Authorization': 'token ' + os.environ['JUPYTERHUB_API_TOKEN']})
-        except Exception as e:
-            self.log.exception("An error occured when sending a DELETE request to the ngshare endpoint %s", url)
-            return None
-        return self._ngshare_api_check_error(response, url)
+        return self.ngshare_api_request('DELETE', url, params=params)
 
     assignment_dir = Unicode('.',
                              help=dedent("""
