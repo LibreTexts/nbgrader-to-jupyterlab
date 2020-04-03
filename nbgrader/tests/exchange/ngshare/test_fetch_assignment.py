@@ -51,11 +51,17 @@ class TestExchangeFetchAssignment(TestExchange):
 
     def test_404(self):
         self.mock_404()
-        self.fetch_assignment.start()
+        try:
+            self.fetch_assignment.start()
+        except Exception as e:
+            assert issubclass(type(e), ExchangeError)
 
     def test_unsuccessful(self):
         self.mock_unsuccessful()
-        self.fetch_assignment.start()
+        try:
+            self.fetch_assignment.start()
+        except Exception as e:
+            assert issubclass(type(e), ExchangeError)
 
     def test_no_course_id(self):
         self.fetch_assignment.coursedir.course_id = ''

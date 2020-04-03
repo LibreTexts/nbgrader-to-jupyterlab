@@ -217,13 +217,17 @@ class TestExchangeList(TestExchange):
 
     def test_404(self):
         self.mock_404()
-        with pytest.raises(ExchangeError):
+        try:
             self.list.start()
+        except Exception as e:
+            assert issubclass(type(e), ExchangeError)
 
     def test_unsuccessful(self):
         self.mock_unsuccessful()
-        with pytest.raises(ExchangeError):
+        try:
             self.list.start()
+        except Exception as e:
+            assert issubclass(type(e), ExchangeError)
 
     def test_list_released_2x1_course1(self):
         self.num_courses = 2

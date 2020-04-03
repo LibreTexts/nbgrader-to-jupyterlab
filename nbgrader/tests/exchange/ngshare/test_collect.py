@@ -101,11 +101,17 @@ class TestExchangeCollect(TestExchange):
 
     def test_404(self):
         self.mock_404()
-        self.collect.start()
+        try:
+            self.collect.start()
+        except Exception as e:
+            assert issubclass(type(e), ExchangeError)
 
     def test_unsuccessful(self):
         self.mock_unsuccessful()
-        self.collect.start()
+        try:
+            self.collect.start()
+        except Exception as e:
+            assert issubclass(type(e), ExchangeError)
 
     def test_no_course_id(self):
         """Does collecting without a course id throw an error?"""

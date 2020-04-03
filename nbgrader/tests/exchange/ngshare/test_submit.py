@@ -150,11 +150,17 @@ class TestExchangeSubmit(TestExchange):
 
     def test_404(self):
         self.mock_404()
-        self.submit.start()
+        try:
+            self.submit.start()
+        except Exception as e:
+            assert issubclass(type(e), ExchangeError)
 
     def test_unsuccessful(self):
         self.mock_unsuccessful()
-        self.submit.start()
+        try:
+            self.submit.start()
+        except Exception as e:
+            assert issubclass(type(e), ExchangeError)
 
     def test_no_course_id(self):
         """Does submitting without a course id thrown an error?"""
