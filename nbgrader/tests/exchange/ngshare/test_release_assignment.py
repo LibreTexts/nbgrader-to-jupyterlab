@@ -115,11 +115,17 @@ class TestExchangeReleaseAssignment(TestExchange):
 
     def test_404(self):
         self.mock_404()
-        self.release_assignment.start()
+        try:
+            self.release_assignment.start()
+        except Exception as e:
+            assert issubclass(type(e), ExchangeError)
 
     def test_unsuccessful(self):
         self.mock_unsuccessful()
-        self.release_assignment.start()
+        try:
+            self.release_assignment.start()
+        except Exception as e:
+            assert issubclass(type(e), ExchangeError)
 
     def test_no_course_id(self, tmpdir_factory):
         """Does releasing without a course id thrown an error?"""

@@ -221,7 +221,6 @@ class ExchangeList(Exchange, ABCExchangeList):
             self.assignments = sorted(glob.glob(pattern))
             if student_id == '*':
                 student_id = None
-            self.submissions = self._get_submissions(assignments, student_id)
         else:
             self.assignments = assignments
 
@@ -311,14 +310,11 @@ class ExchangeList(Exchange, ABCExchangeList):
                                                        info['course_id']))
 
             if self.cached:
-                # Find matching submission in server.
-                submissions = [x['notebooks'] for x in self.submissions if
-                               x['timestamp'] == info['timestamp']
-                               and x['student_id'] == info['student_id']
-                               and x['assignment_id'] == info['assignment_id']
-                               and x['course_id'] == info['course_id']
-                               ]
-                submission = [] if len(submissions) == 0 else submissions[0]
+                feedback_checksums = self._get_feedback_checksums(
+                    info['course_id'], info['assignment_id'],
+                    info['student_id'], info['timestamp'])
+                if feedback_checksums is None:
+                    feedback_checksums = {}
 
             info['notebooks'] = []
             for notebook in notebooks:
@@ -358,14 +354,11 @@ class ExchangeList(Exchange, ABCExchangeList):
                 if self.cached:
                     has_exchange_feedback = False
                     exchange_feedback_checksum = None
-                    for submission_notebook in submission:
-                        if submission_notebook['notebook_id'] == nb_info[
-                                'notebook_id'] and submission_notebook[
-                                'feedback_checksum'] is not None:
-                            has_exchange_feedback = True
-                            exchange_feedback_checksum = submission_notebook[
-                                'feedback_checksum']
-                            break
+                    notebook_id = nb_info['notebook_id']
+                    if notebook_id in feedback_checksums.keys():
+                        has_exchange_feedback = True
+                        exchange_feedback_checksum = feedback_checksums[
+                            notebook_id]
                 else:  # self.inbound
                     has_exchange_feedback = notebook['feedback_checksum']\
                         is not None and notebook['feedback_checksum'] != ''
