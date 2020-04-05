@@ -1,7 +1,5 @@
 #!/usr/bin/python
 import os
-import datetime
-import sys
 import shutil
 import glob
 import requests
@@ -14,9 +12,10 @@ from jupyter_core.paths import jupyter_data_dir
 
 from nbgrader.exchange.abc import Exchange as ABCExchange
 from nbgrader.exchange import ExchangeError
-from nbgrader.utils import check_directory, ignore_patterns, self_owned
+from nbgrader.utils import ignore_patterns
 import base64
 import json
+
 
 class Exchange(ABCExchange):
 
@@ -80,10 +79,6 @@ class Exchange(ABCExchange):
             which is normally Jupyter's notebook_dir.
             """)).tag(config=True)
 
-    root = Unicode('/srv/nbgrader/exchange',
-                   help='The nbgrader exchange directory writable to everyone. MUST be preexisting.'
-                   ).tag(config=True)
-
     cache = Unicode('',
                     help='Local cache directory for nbgrader submit and nbgrader list. Defaults to $JUPYTER_DATA_DIR/nbgrader_cache'
                     ).tag(config=True)
@@ -99,16 +94,6 @@ class Exchange(ABCExchange):
             will be something like `./ps1`. If this is `True`, then the path
             will be something like `./course123/ps1`.
             """)).tag(config=True)
-
-    def set_perms(self, dest, fileperms, dirperms):
-        all_dirs = []
-        for (dirname, _, filenames) in os.walk(dest):
-            for filename in filenames:
-                os.chmod(os.path.join(dirname, filename), fileperms)
-            all_dirs.append(dirname)
-
-        for dirname in all_dirs[::-1]:
-            os.chmod(dirname, dirperms)
 
     def decode_dir(self, src_dir, dest_dir, ignore=None):
         '''
@@ -209,20 +194,6 @@ class Exchange(ABCExchange):
             self.log.error('Did you mean: %s', scores[-1][1])
 
         raise ExchangeError(msg)
-
-    def ensure_directory(self, path, mode):
-        """Ensure that the path exists, has the right mode and is self owned."""
-
-        if not os.path.isdir(path):
-            os.makedirs(path)
-
-            # For some reason, Python won't create a directory with a mode of 0o733
-            # so we have to create and then chmod.
-
-            os.chmod(path, mode)
-        else:
-            if not self.coursedir.groupshared and not self_owned(path):
-                self.fail("You don't own the directory: {}".format(path))
 
     def do_copy(self, src, dest, log=None):
         """
