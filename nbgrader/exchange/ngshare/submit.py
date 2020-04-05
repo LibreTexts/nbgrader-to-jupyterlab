@@ -102,7 +102,7 @@ class ExchangeSubmit(Exchange, ABCExchangeSubmit):
                 )
 
     def post_submission(self, src_path):
-        encoded_dir = self.encode_dir(src_path)
+        encoded_dir = self.encode_dir(src_path, ignore=self.ignore_patterns())
         url = '/submission/{}/{}'.format(self.coursedir.course_id, self.coursedir.assignment_id)
 
         response = self.ngshare_api_post(url, encoded_dir)

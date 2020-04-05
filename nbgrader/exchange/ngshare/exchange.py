@@ -5,6 +5,7 @@ import sys
 import shutil
 import glob
 import requests
+import fnmatch
 
 from textwrap import dedent
 
@@ -255,3 +256,44 @@ class Exchange(ABCExchange):
                             os.chmod(filename, (st_mode|0o660) & 0o777)
                         except PermissionError:
                             self.log.warning("Could not update permissions of %s to make it groupshared", filename)
+
+    def ignore_patterns(self):
+        """
+        Returns a function which decides whether or not a file should be
+        ignored. The function has the signature
+            ignore_patterns(directory, filename, filesize) -> bool
+        The directory and filename are the same parameters as described in
+        shutil.ignore_patterns. filesize is the size of the file in kilobytes.
+        All filenames matching patterns in self.coursedir.ignore, if it exists,
+        will be ignored. If self.coursedir.include exists, filenames not
+        matching the patterns will be ignored. If self.coursedir.max_file_size
+        exists, files exceeding that size in kilobytes will be ignored.
+        """
+        exclude = self.coursedir.ignore
+        include = self.coursedir.include
+        max_file_size = self.coursedir.max_file_size
+        log = self.log
+
+        def ignore_patterns(directory, filename, filesize):
+            fullname = os.path.join(directory, filename)
+            if exclude and any(fnmatch.fnmatch(filename, glob) for glob in
+                               exclude):
+                if log:
+                    log.debug("Ignoring excluded file '{}' (see config option "
+                              'CourseDirectory.ignore)'.format(fullname))
+                return True
+            elif include and not any(fnmatch.fnmatch(filename, glob) for glob
+                                     in include):
+                if log:
+                    log.debug("Ignoring non included file '{}' (see config "
+                              'option CourseDirectory.include)'
+                              .format(fullname))
+                return True
+            elif max_file_size and filesize > 1000 * max_file_size:
+                if log:
+                    log.warning("Ignoring file too large '{}' (see config "
+                                'option CourseDirectory.max_file_size)'
+                                .format(fullname))
+                return True
+            return False
+        return ignore_patterns
