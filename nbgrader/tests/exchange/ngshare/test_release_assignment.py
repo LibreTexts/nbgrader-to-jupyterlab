@@ -31,8 +31,8 @@ class TestExchangeReleaseAssignment(TestExchange):
         Mocks ngshare's GET assignments, which responds with no assignments,
         and POST assignment, which verifies the request.
         '''
-        url = '{}/assignments/{}/{}'.format(self.base_url, self.course_id,
-                                            self.assignment_id)
+        url = '{}/assignments/{}'.format(self.base_url, self.course_id)
+        print(url)
         response = {'success': True, 'assignments': []}
         self.requests_mocker.get(url, json=response)
 
@@ -45,8 +45,7 @@ class TestExchangeReleaseAssignment(TestExchange):
         Mocks ngshare's GET assignments, which responds with the assignment,
         and POST assignment, which responds with "Assignment already exists".
         '''
-        url = '{}/assignments/{}/{}'.format(self.base_url, self.course_id,
-                                            self.assignment_id)
+        url = '{}/assignments/{}'.format(self.base_url, self.course_id)
         response = {'success': True, 'assignments': [self.assignment_id]}
         self.requests_mocker.get(url, json=response)
 
@@ -63,8 +62,7 @@ class TestExchangeReleaseAssignment(TestExchange):
         assignment has not been called or success otherwise, and DELETE
         assignment, which notes that the assignment no longer exists.
         '''
-        url = '{}/assignments/{}/{}'.format(self.base_url, self.course_id,
-                                            self.assignment_id)
+        url = '{}/assignments/{}'.format(self.base_url, self.course_id)
         self.requests_mocker.get(url, json=self._get_assignments)
 
         url = '{}/assignment/{}/{}'.format(self.base_url, self.course_id,
