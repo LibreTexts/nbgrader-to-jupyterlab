@@ -54,17 +54,17 @@ class ExchangeFetchFeedback(Exchange, ABCExchangeFetchFeedback):
     def copy_files(self):
         self.log.info('Fetching feedback from server')
         if len(self.timestamps) == 0:
-            self.log.info('No feedback available to fetch for your submissions')
+            self.log.warning('No feedback available to fetch for your submissions')
 
         for timestamp in self.timestamps:
             params = {'timestamp': timestamp, 'list_only': 'false'}
             response = self.ngshare_api_get(self.src_path, params=params)
             if response is None:
-                self.log.warn('An error occurred while trying to fetch feedback for {}'.format(self.coursedir.assignment_id))
+                self.log.warning('An error occurred while trying to fetch feedback for {}'.format(self.coursedir.assignment_id))
                 return
             try:
                 dest_with_timestamp = os.path.join(self.dest_path, str(timestamp))
                 self.decode_dir(response['files'], dest_with_timestamp)
                 self.log.info('Successfully decoded feedback for {} saved to {}'.format(self.coursedir.assignment_id, dest_with_timestamp))
             except:
-                self.log.warn('Could not decode feedback for timestamp {}'.format(str(timestamp)))
+                self.log.warning('Could not decode feedback for timestamp {}'.format(str(timestamp)))
