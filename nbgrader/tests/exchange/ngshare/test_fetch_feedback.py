@@ -105,11 +105,8 @@ class TestExchangeFetchFeedback(TestExchange):
             with open(feedback_path, 'rb') as actual_file:
                 assert actual_file.read() == reference_file.read()
 
-    def test_fetch_no_feedback_available(self):
-        submissions = self.cache_dir / self.course_id
-        os.makedirs(submissions)
-
-        # not sure if this should fail?
+    def test_wrong_student_id(self):
+        self.fetch_feedback.coursedir.student_id = 'xx+xx'
 
         with pytest.raises(ExchangeError):
             self.fetch_feedback.start()
