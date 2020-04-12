@@ -36,7 +36,6 @@ class ManageSubmissionsHandler(BaseHandler):
             base_url=self.base_url)
         self.write(html)
 
-
 class GradebookAssignmentsHandler(BaseHandler):
     @web.authenticated
     @check_xsrf

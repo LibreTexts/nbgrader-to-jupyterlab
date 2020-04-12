@@ -55,6 +55,12 @@ nbgrader autograde "{{ assignment_id }}"</pre>
 {%- endblock -%}
 
 {%- block table_header -%}
+
+<th colspan="11">
+  <span class="glyphicon glyphicon-flash" aria-hidden="false"></span>
+  <a href="#" onClick="autogradeAll(assignment_id);">Autograde All Submissions</a>
+</th>
+
 <tr>
   <th>Student Name</th>
   <th class="text-center">Student ID</th>

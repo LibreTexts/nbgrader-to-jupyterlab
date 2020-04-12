@@ -258,6 +258,40 @@ var SubmissionUI = Backbone.View.extend({
 
 });
 
+function autogradeAll(assignment_id){
+
+    function autograde_all_success(response) {
+        response = JSON.parse(response);
+        if (response["success"]) {
+            createLogModal(
+                "success-modal",
+                "Success",
+                "Successfully autograded all submissions for '" + assignment_id + "'.", response["log"]);
+
+        } else {
+            createLogModal(
+                "error-modal",
+                "Error",
+                "There was an error autograding submissions for '" + assignment_id + "'.", response["log"],
+                response["error"]);
+        }
+
+    };
+
+    function autograde_failure() {
+
+        createModal(
+            "error-modal",
+            "Error",
+            "There was a failure autograding submissions for '" + assignment_id + "'.");
+    };
+
+    $.post(base_url + "/formgrader/api/submissions/" + assignment_id + "/autograde")
+        .done(_.bind(autograde_all_success),this)
+        .fail(_.bind(autograde_all_failure));
+
+};
+
 var insertRow = function (table) {
     var row = $("<tr/>");
     row.append($("<td/>").addClass("student-name"));
