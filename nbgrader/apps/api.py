@@ -8,6 +8,7 @@ import warnings
 from traitlets.config import LoggingConfigurable, Config, get_config
 from traitlets import Instance, Enum, Unicode, observe
 
+from ..apps import AutogradeApp
 from ..coursedir import CourseDirectory
 from ..converters import GenerateAssignment, Autograde, GenerateFeedback
 from ..exchange import ExchangeFactory, ExchangeError
@@ -1036,6 +1037,14 @@ class NbGraderAPI(LoggingConfigurable):
             app = Autograde(coursedir=self.coursedir, parent=self)
             app.force = force
             app.create_student = create
+            return capture_log(app)
+
+    def autograde_all(self, assignment_id):
+        """
+        Autogrades all submissiong for a particular assignment
+        """
+        with temp_attrs(self.coursedir, assignment_id=assignment_id):
+            app = AutogradeApp(coursedir=self.coursedir, parent=self)
             return capture_log(app)
 
     def generate_feedback(self, assignment_id, student_id=None, force=True):
