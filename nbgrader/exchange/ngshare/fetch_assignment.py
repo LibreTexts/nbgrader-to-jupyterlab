@@ -13,7 +13,7 @@ class ExchangeFetchAssignment(Exchange, ABCExchangeFetchAssignment):
 
     def _load_config(self, cfg, **kwargs):
         if 'ExchangeFetch' in cfg:
-            self.log.warninging('Use ExchangeFetchAssignment in config, not ExchangeFetch. Outdated config:\n%s'
+            self.log.warning('Use ExchangeFetchAssignment in config, not ExchangeFetch. Outdated config:\n%s'
                              ,
                              '\n'.join('ExchangeFetch.{key} = {value!r}'.format(key=key,
                              value=value) for (key, value) in
