@@ -8,9 +8,9 @@ import shutil
 import pytest
 from requests import PreparedRequest
 
-from base import parse_body, TestExchange
-from nbgrader.exchange.abc.exchange import ExchangeError
-from nbgrader.exchange.ngshare.release_feedback import ExchangeReleaseFeedback
+from .base import parse_body, TestExchange
+from ....exchange.abc.exchange import ExchangeError
+from ....exchange.ngshare.release_feedback import ExchangeReleaseFeedback
 
 
 class TestExchangeReleaseFeedback(TestExchange):

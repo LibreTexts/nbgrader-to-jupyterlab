@@ -4,10 +4,10 @@ import os
 import pytest
 from requests import PreparedRequest
 
-from base import parse_body, TestExchange
-from nbgrader.exchange.abc.exchange import ExchangeError
-from nbgrader.exchange.ngshare import ExchangeCollect
-from nbgrader.utils import parse_utc
+from .base import parse_body, TestExchange
+from ....exchange.abc.exchange import ExchangeError
+from ....exchange.ngshare import ExchangeCollect
+from ....utils import parse_utc
 
 
 class TestExchangeCollect(TestExchange):
