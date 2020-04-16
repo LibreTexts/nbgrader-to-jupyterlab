@@ -73,13 +73,17 @@ class TestExchangeFetchFeedback(TestExchange):
 
     def test_no_course_id(self):
         self.fetch_feedback.coursedir.course_id = ''
-        with pytest.raises(ExchangeError):
+        try:
             self.fetch_feedback.start()
+        except Exception as e:
+            assert issubclass(type(e), ExchangeError)
 
     def test_bad_student_id(self):
         self.fetch_feedback.coursedir.student_id = '***'
-        with pytest.raises(ExchangeError):
+        try:
             self.fetch_feedback.start()
+        except Exception as e:
+            assert issubclass(type(e), ExchangeError)
 
     def test_fetch(self):
 

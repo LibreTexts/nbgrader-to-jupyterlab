@@ -84,13 +84,17 @@ class TestExchangeReleaseFeedback(TestExchange):
 
     def test_404(self):
         self.mock_404()
-        with pytest.raises(ExchangeError):
+        try:
             self.release_feedback.start()
+        except Exception as e:
+            assert issubclass(type(e), ExchangeError)
 
     def test_unsuccessful(self):
         self.mock_unsuccessful()
-        with pytest.raises(ExchangeError):
+        try:
             self.release_feedback.start()
+        except Exception as e:
+            assert issubclass(type(e), ExchangeError)
 
     def test_no_course_id(self, tmpdir_factory):
         """Does releasing without a course id thrown an error?"""
