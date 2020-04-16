@@ -1,0 +1,24 @@
+#nbgrader-menu {
+  background-color: white;
+  padding: 1em;
+}
+
+iframe {
+  border: 0;
+  width: 100%;
+  height: 700px;
+}
+
+a {
+  color: #296eaa;
+}
+
+.nbgrader-CellToolbar {
+  justify-content: right;
+  display: flex;
+}
+
+.nbgrader-CellToolbar > * {
+  display: inline;
+  padding: 0 1em;
+}
