@@ -84,11 +84,13 @@ class TestExchangeReleaseFeedback(TestExchange):
 
     def test_404(self):
         self.mock_404()
-        self.release_feedback.start()
+        with pytest.raises(ExchangeError):
+            self.release_feedback.start()
 
     def test_unsuccessful(self):
         self.mock_unsuccessful()
-        self.release_feedback.start()
+        with pytest.raises(ExchangeError):
+            self.release_feedback.start()
 
     def test_no_course_id(self, tmpdir_factory):
         """Does releasing without a course id thrown an error?"""
@@ -135,5 +137,8 @@ class TestExchangeReleaseFeedback(TestExchange):
         self._prepare_feedback()
         assert os.path.exists(feedback_dir1)
         assert os.path.exists(feedback_dir2)
+        self.student_id = 'student_1'
+        self._mock_requests_release()
+        self.student_id = 'student_2'
         self._mock_requests_release()
         self.release_feedback.start()
