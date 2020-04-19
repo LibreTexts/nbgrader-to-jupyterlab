@@ -5,10 +5,10 @@ import os
 
 import pytest
 
-from base import TestExchange
-from nbgrader.auth import Authenticator
-from nbgrader.exchange.abc import ExchangeError
-from nbgrader.exchange.ngshare.fetch_feedback import ExchangeFetchFeedback
+from .base import TestExchange
+from ....auth import Authenticator
+from ....exchange.abc import ExchangeError
+from ....exchange.ngshare.fetch_feedback import ExchangeFetchFeedback
 
 
 class TestExchangeFetchFeedback(TestExchange):
@@ -73,13 +73,17 @@ class TestExchangeFetchFeedback(TestExchange):
 
     def test_no_course_id(self):
         self.fetch_feedback.coursedir.course_id = ''
-        with pytest.raises(ExchangeError):
+        try:
             self.fetch_feedback.start()
+        except Exception as e:
+            assert issubclass(type(e), ExchangeError)
 
     def test_bad_student_id(self):
         self.fetch_feedback.coursedir.student_id = '***'
-        with pytest.raises(ExchangeError):
+        try:
             self.fetch_feedback.start()
+        except Exception as e:
+            assert issubclass(type(e), ExchangeError)
 
     def test_fetch(self):
 

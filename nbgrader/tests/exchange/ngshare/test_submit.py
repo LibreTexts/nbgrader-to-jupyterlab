@@ -11,9 +11,9 @@ import pytest
 from requests import PreparedRequest
 import requests_mock as rq_mock
 
-from base import parse_body, TestExchange
-from nbgrader.exchange.abc.exchange import ExchangeError
-from nbgrader.exchange.ngshare import ExchangeSubmit
+from .base import parse_body, TestExchange
+from ....exchange.abc.exchange import ExchangeError
+from ....exchange.ngshare import ExchangeSubmit
 
 
 def get_files_path() -> Path:

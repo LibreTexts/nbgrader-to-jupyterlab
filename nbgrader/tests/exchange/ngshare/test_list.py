@@ -12,10 +12,10 @@ import pytest
 from requests import PreparedRequest
 from textwrap import dedent
 
-from base import parse_body, TestExchange
-from nbgrader.auth import Authenticator
-from nbgrader.exchange.abc.exchange import ExchangeError
-from nbgrader.exchange.ngshare import ExchangeList
+from .base import parse_body, TestExchange
+from ....auth import Authenticator
+from ....exchange.abc.exchange import ExchangeError
+from ....exchange.ngshare import ExchangeList
 
 
 class TestExchangeList(TestExchange):

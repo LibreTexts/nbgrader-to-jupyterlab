@@ -72,7 +72,7 @@ class ExchangeReleaseFeedback(Exchange, ABCExchangeReleaseFeedback):
                 retvalue = self.post_feedback(student_id, timestamp,
                                               feedback_info)
                 if retvalue is None:
-                    self.log.error('Failed to upload feedback to server.')
+                    self.fail('Failed to upload feedback to server.')
                 else:
                     self.log.info('Feedback released.')
 
