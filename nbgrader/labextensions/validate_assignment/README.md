@@ -1,10 +1,6 @@
 # validate_assignment
 
-![Github Actions Status](https://github.com/jupyter/nbgrader/workflows/Build/badge.svg)
-
 Validate assignment button
-
-
 
 ## Requirements
 
@@ -55,3 +51,11 @@ jupyter lab --watch
 
 jupyter labextension uninstall validate-assignment
 ```
+
+### Note
+https://jupyterlab.readthedocs.io/en/stable/developer/notebook.html#how-to-extend-the-notebook-plugin
+`npm install --save @jupyterlab/notebook @jupyterlab/application @jupyterlab/apputils @jupyterlab/docregistry @lumino/disposable`
+`jlpm && jlpm build && jupyter labextension link .`
+`jlpm watch`
+`jupyter lab --watch`
+
