@@ -57,3 +57,8 @@ jupyter lab --watch
 jupyter labextension uninstall jupyterlab_apod
 ```
 
+## Effect
+After installing this extension, you can see a panel called "nbgrader" on the left. 
+
+To make the panel to the right, add `"overrides":{"nbgrader-menu": "right"}` to "Settings -> Advanced Settings Editor -> Sidebar -> User Preferences"
+
