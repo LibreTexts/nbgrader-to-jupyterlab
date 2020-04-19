@@ -7,7 +7,7 @@ import {
 } from '@lumino/disposable';
 
 import {
-  ToolbarButton
+  ToolbarButton, Dialog, showDialog
 } from '@jupyterlab/apputils';
 
 import {
@@ -26,6 +26,15 @@ class ButtonExtension implements DocumentRegistry.IWidgetExtension<NotebookPanel
   createNew(panel: NotebookPanel, context: DocumentRegistry.IContext<INotebookModel>): IDisposable {
     let callback = () => {
       NotebookActions.runAll(panel.content, context.sessionContext);
+      return showDialog({
+        title: "My Dialog",
+        body: "Hello",
+        buttons: [
+          Dialog.cancelButton({ label: 'cancel_button' }),
+          Dialog.okButton({ label: 'ok_button' })
+        ],
+        focusNodeSelector: 'input'
+      });
     };
     let button = new ToolbarButton({
       className: 'myButton',
