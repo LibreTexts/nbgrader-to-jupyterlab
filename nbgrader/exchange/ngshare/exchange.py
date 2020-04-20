@@ -128,9 +128,7 @@ class Exchange(ABCExchange):
             file_size = len(decoded_content)
 
             if ignore:
-                print('HAVE TO IGNORE')
                 if ignore(dest_path, file_name, file_size):
-                    print('WILL IGNORE')
                     continue
 
             with open(dest_path, 'wb') as d:
