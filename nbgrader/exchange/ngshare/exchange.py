@@ -34,14 +34,14 @@ class Exchange(ABCExchange):
 
     def _ngshare_api_check_error(self, response, url):
         if response.status_code != requests.codes.ok:
-            self.log.error("ngshare service returned invalid status code %d.",response.status_code)
+            self.log.error("ngshare service returned invalid status code %d.", response.status_code)
 
         try:
             response = response.json()
-        except:
-            self.log.exception("ngshare service returned non-JSON content: '%s'.",response.text)
+        except Exception:
+            self.log.exception("ngshare service returned non-JSON content: '%s'.", response.text)
             return None
-        
+
         if not response['success']:
             if 'message' not in response:
                 self.log.error("ngshare endpoint %s returned failure without an error message.", url)
@@ -59,7 +59,7 @@ class Exchange(ABCExchange):
             response = requests.request(method, self.ngshare_url + url,
                                         headers=headers, data=data,
                                         params=params)
-        except Exception as e:
+        except Exception:
             self.log.exception('An error occurred when querying the ngshare '
                                'endpoint %s', url)
             return None
@@ -105,7 +105,7 @@ class Exchange(ABCExchange):
        false otherwise. This function takes as arguments the file directory path,
        file name, and file size in KB.
        '''
-        #check if the destination directory exists
+        # check if the destination directory exists
         if not os.path.exists(dest_dir):
             os.mkdir(dest_dir)
 
@@ -216,7 +216,7 @@ class Exchange(ABCExchange):
                 st_mode = os.stat(dirname).st_mode
                 if st_mode & 0o2770 != 0o2770:
                     try:
-                        os.chmod(dirname, (st_mode|0o2770) & 0o2777)
+                        os.chmod(dirname, (st_mode | 0o2770) & 0o2777)
                     except PermissionError:
                         self.log.warning("Could not update permissions of %s to make it groupshared", dirname)
 
@@ -225,7 +225,7 @@ class Exchange(ABCExchange):
                     st_mode = os.stat(filename).st_mode
                     if st_mode & 0o660 != 0o660:
                         try:
-                            os.chmod(filename, (st_mode|0o660) & 0o777)
+                            os.chmod(filename, (st_mode | 0o660) & 0o777)
                         except PermissionError:
                             self.log.warning("Could not update permissions of %s to make it groupshared", filename)
 
