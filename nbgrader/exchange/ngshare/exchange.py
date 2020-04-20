@@ -34,13 +34,14 @@ class Exchange(ABCExchange):
 
     def _ngshare_api_check_error(self, response, url):
         if response.status_code != requests.codes.ok:
-            self.log.error("ngshare service returned invalid status code %d, this should never happen.",response.status_code)
-            return None
+            self.log.error("ngshare service returned invalid status code %d.",response.status_code)
+
         try:
             response = response.json()
         except:
-            self.log.exception("ngshare service returned non-JSON content: '%s'. This should never happen.",response.text)
+            self.log.exception("ngshare service returned non-JSON content: '%s'.",response.text)
             return None
+        
         if not response['success']:
             if 'message' not in response:
                 self.log.error("ngshare endpoint %s returned failure without an error message.", url)
@@ -127,7 +128,9 @@ class Exchange(ABCExchange):
             file_size = len(decoded_content)
 
             if ignore:
-                if ignore(dir_name, file_name, file_size):
+                print('HAVE TO IGNORE')
+                if ignore(dest_path, file_name, file_size):
+                    print('WILL IGNORE')
                     continue
 
             with open(dest_path, 'wb') as d:
