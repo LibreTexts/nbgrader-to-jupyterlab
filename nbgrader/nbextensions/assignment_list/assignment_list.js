@@ -519,7 +519,7 @@ define([
         status.append($("<span/>").text(this.data.timestamp));
         if (this.data.has_local_feedback && !this.data.feedback_updated) {
             var url = utils.url_path_join(
-                this.base_url, 'tree', this.data.local_feedback_path)
+                this.base_url, 'tree', encodeURIComponent(this.data.local_feedback_path))
             var link = $('<a/>')
                 .attr("href", url)
                 .attr("target", "_blank")
