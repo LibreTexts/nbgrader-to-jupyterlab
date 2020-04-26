@@ -15,7 +15,7 @@ import {
 } from '@jupyterlab/docregistry';
 
 import {
-  NotebookActions, NotebookPanel, INotebookModel
+  NotebookPanel, INotebookModel
 } from '@jupyterlab/notebook';
 
 export
@@ -25,19 +25,60 @@ class ButtonExtension implements DocumentRegistry.IWidgetExtension<NotebookPanel
    */
   createNew(panel: NotebookPanel, context: DocumentRegistry.IContext<INotebookModel>): IDisposable {
     let callback = () => {
-      NotebookActions.runAll(panel.content, context.sessionContext);
-      return showDialog({
-        title: "My Dialog",
-        body: "Hello",
-        buttons: [
-          Dialog.cancelButton({ label: 'cancel_button' }),
-          Dialog.okButton({ label: 'ok_button' })
-        ],
-        focusNodeSelector: 'input'
-      });
+      // examples/notebook/src/commands.ts:79
+      panel.context.save();
+      // TODO
+      // button.title = "Saving...";
+      // tests/test-docregistry/src/context.spec.ts:98
+      const notebookSaved = (sender: DocumentRegistry.IContext<INotebookModel>,
+                             args: DocumentRegistry.SaveState) => {
+        if (args == "completed") {
+          // TODO
+          /*
+          var settings = {
+              cache : false,
+              data : { path: Jupyter.notebook.notebook_path },
+              type : "POST",
+              dataType : "json",
+              success : function (data, status, xhr) {
+                  btn.text('Validate');
+                  btn.removeAttr('disabled');
+                  validate(data, btn);
+              },
+              error : function (xhr, status, error) {
+                  utils.log_ajax_error(xhr, status, error);
+              }
+          };
+          btn.text('Validating...');
+          btn.attr('disabled', 'disabled');
+          var url = utils.url_path_join(
+              Jupyter.notebook.base_url,
+              'assignments',
+              'validate'
+          );
+          ajax(url, settings);
+          */
+          showDialog({
+            title: "My Dialog",
+            body: "Hello",
+            buttons: [Dialog.okButton()],
+            focusNodeSelector: 'input'
+          });
+          panel.context.saveState.disconnect(notebookSaved);
+        } else if (args == "failed") {
+          showDialog({
+            title: "Validation failed",
+            body: "Cannot save notebook",
+            buttons: [Dialog.okButton()],
+            focusNodeSelector: 'input'
+          });
+          panel.context.saveState.disconnect(notebookSaved);
+        }
+      };
+      panel.context.saveState.connect(notebookSaved);
     };
     let button = new ToolbarButton({
-      className: 'myButton',
+      className: 'validate-button',
       // iconClass: 'fa fa-fast-forward',
       label: 'Validate',
       onClick: callback,

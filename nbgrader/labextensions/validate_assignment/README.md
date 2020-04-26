@@ -45,6 +45,18 @@ jlpm watch
 jupyter lab --watch
 ```
 
+#### Disk space
+If you have limited disk space, try running the following frequently
+```
+rm ~/.cache/yarn/v6/npm-validate-assignment-*
+```
+
+If your home directory is in SSD and you don't want it to be writen a lot
+ each time you build your project:
+```
+sudo mount -t tmpfs tmpfs ~/.cache/yarn
+```
+
 ### Uninstall
 
 ```bash
