@@ -30,7 +30,14 @@ function error_dialog(body: string): void {
   });
 }
 
+function validation_body(data: any): string {
+  return "<div id=\"hellow\">" + JSON.stringify(data) + "</div>"
+}
+
+
 var nbgrader_version = "0.7.0.dev"; // TODO: hardcoded value
+
+var tmp = -1;
 
 export
 class ButtonExtension implements DocumentRegistry.IWidgetExtension<NotebookPanel, INotebookModel> {
@@ -51,12 +58,13 @@ class ButtonExtension implements DocumentRegistry.IWidgetExtension<NotebookPanel
                 panel.context.saveState.disconnect(notebookSaved);
                 // TODO: button.title = 'Validating...'
                 // TODO: btn.attr('disabled', 'disabled');
-                requestAPI<any>('assignments/validate?path=TODO_UNKNOWN_PATH1',
+                tmp += 1;
+                requestAPI<any>('assignments/validate?path=TODO_UNKNOWN_PATH1&test=' + tmp,
                   { method: 'POST', body: "path=TODO_UNKNOWN_PATH2" })
                   .then(data => {
                     showDialog({
-                      title: "My Dialog",
-                      body: JSON.stringify(data),
+                      title: "Validation Results",
+                      body: validation_body(data),
                       buttons: [Dialog.okButton()],
                       focusNodeSelector: 'input'
                     });
